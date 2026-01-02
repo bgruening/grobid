@@ -219,6 +219,12 @@ subprojects {
         
         systemProperty "java.library.path", "${javaLibraryPath}"
     }
+
+    tasks.withType(Test).configureEach {
+        // Needed by some native libs (e.g. onnxruntime) under Java 17+ / 21 when
+        // accessing direct buffer internals.
+        jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
+    }
 }
 
 /** SUBPROJECTS **/
@@ -258,6 +264,15 @@ project("grobid-core") {
         implementation 'black.ninia:jep:4.0.3'
         implementation 'org.apache.opennlp:opennlp-tools:1.9.4'
         implementation group: 'org.jruby', name: 'jruby-complete', version: '9.4.12.1'
+
+        // ONNX Runtime for model inference
+        implementation 'com.microsoft.onnxruntime:onnxruntime:1.16.3'
+
+        // LMDB for word embeddings lookup
+        implementation 'org.lmdbjava:lmdbjava:0.8.3'
+
+        // JSON parsing (for CRF params and vocab)
+        implementation 'com.google.code.gson:gson:2.10.1'
 
         shadedLib "org.apache.lucene:lucene-analyzers-common:4.5.1"
     }
@@ -353,11 +368,16 @@ project(":grobid-service") {
         def javaLibraryPath = getJavaLibraryPath()
 
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
-            jvmArgs "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+            jvmArgs "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
+                "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED" // Required for LMDB
         }
         workingDir = rootProject.rootDir
 
-        systemProperty "java.library.path", "${javaLibraryPath}"
+        // Add homebrew lib paths for macOS (LMDB native library)
+        def lmdbLibPath = org.apache.tools.ant.taskdefs.condition.Os.isFamily(org.apache.tools.ant.taskdefs.condition.Os.FAMILY_MAC) ?
+            ":/opt/homebrew/lib:/usr/local/lib" : ""
+        systemProperty "java.library.path", "${javaLibraryPath}${lmdbLibPath}"
     }
 
     tasks.distZip.enabled = true

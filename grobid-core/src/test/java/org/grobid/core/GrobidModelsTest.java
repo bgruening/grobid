@@ -1,6 +1,6 @@
 package org.grobid.core;
 
-import org.grobid.core.test.TestEngineUtils;
+import org.grobid.core.utilities.TestEngineUtils;
 import org.grobid.core.utilities.GrobidConfig;
 import org.grobid.core.utilities.GrobidProperties;
 import org.junit.BeforeClass;

@@ -10,7 +10,7 @@ import java.util.StringTokenizer;
 
 import org.grobid.core.data.BibDataSet;
 import org.grobid.core.data.PatentItem;
-import org.grobid.core.test.TestEngineUtils;
+import org.grobid.core.utilities.TestEngineUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;

@@ -1,7 +1,7 @@
 package org.grobid.core.engines;
 
 import org.grobid.core.data.Date;
-import org.grobid.core.test.TestEngineUtils;
+import org.grobid.core.utilities.TestEngineUtils;
 import org.junit.*;
 
 import java.util.Arrays;

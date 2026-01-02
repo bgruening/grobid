@@ -4,7 +4,6 @@ import org.grobid.core.document.Document;
 import org.grobid.core.document.DocumentSource;
 import org.grobid.core.engines.Engine;
 import org.grobid.core.engines.config.GrobidAnalysisConfig;
-import org.grobid.core.test.TestEngineUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

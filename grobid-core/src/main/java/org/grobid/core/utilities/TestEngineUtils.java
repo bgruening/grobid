@@ -1,12 +1,10 @@
-package org.grobid.core.test;
+package org.grobid.core.utilities;
 
 import org.grobid.core.engines.tagging.GrobidCRFEngine;
 import org.grobid.core.factory.AbstractEngineFactory;
-import org.grobid.core.utilities.GrobidConfig;
-import org.grobid.core.utilities.GrobidProperties;
 
 /**
- * Test utilities to make Grobid tests independent from the active grobid.yaml.
+ * Test utilities to make Grobid tests independent of the active grobid.yaml.
  *
  * A number of unit/integration tests assume Wapiti-style CRF models.
  * When grobid.yaml is configured to use DeLFT or ONNX for some models

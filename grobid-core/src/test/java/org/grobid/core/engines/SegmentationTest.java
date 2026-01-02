@@ -3,7 +3,7 @@ package org.grobid.core.engines;
 import org.grobid.core.document.Document;
 import org.grobid.core.document.DocumentSource;
 import org.grobid.core.engines.config.GrobidAnalysisConfig;
-import org.grobid.core.test.TestEngineUtils;
+import org.grobid.core.utilities.TestEngineUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;

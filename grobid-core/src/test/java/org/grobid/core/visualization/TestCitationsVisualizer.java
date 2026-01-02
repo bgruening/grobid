@@ -7,7 +7,7 @@ import org.grobid.core.document.Document;
 import org.grobid.core.engines.Engine;
 import org.grobid.core.engines.config.GrobidAnalysisConfig;
 import org.grobid.core.factory.GrobidFactory;
-import org.grobid.core.test.TestEngineUtils;
+import org.grobid.core.utilities.TestEngineUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -17,8 +17,6 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
-import com.fasterxml.jackson.core.Versioned;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;

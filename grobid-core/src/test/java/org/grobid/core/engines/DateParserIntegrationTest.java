@@ -1,7 +1,7 @@
 package org.grobid.core.engines;
 
 import org.grobid.core.data.Date;
-import org.grobid.core.factory.AbstractEngineFactory;
+import org.grobid.core.test.TestEngineUtils;
 import org.junit.*;
 
 import java.util.Arrays;
@@ -22,7 +22,7 @@ public class DateParserIntegrationTest {
     @BeforeClass
     public static void setInitialContext() throws Exception {
 //        MockContext.setInitialContext();
-        AbstractEngineFactory.init();
+        TestEngineUtils.initGrobidForceWapiti();
     }
 
     @AfterClass

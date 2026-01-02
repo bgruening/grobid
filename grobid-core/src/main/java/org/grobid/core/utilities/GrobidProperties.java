@@ -328,6 +328,16 @@ public class GrobidProperties {
     }
 
     /**
+     * Return all model names from the configuration
+     */
+    public static Set<String> getModelNames() {
+        if (modelMap == null) {
+            return Collections.emptySet();
+        }
+        return modelMap.keySet();
+    }
+
+    /**
      * Returns the current version of GROBID
      *
      * @return GROBID version

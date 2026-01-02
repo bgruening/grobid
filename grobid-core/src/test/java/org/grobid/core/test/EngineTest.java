@@ -10,6 +10,7 @@ public abstract class EngineTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
+        TestEngineUtils.initGrobidForceWapiti();
         engine = GrobidFactory.getInstance().getEngine();
     }
 

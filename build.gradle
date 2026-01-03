@@ -598,7 +598,9 @@ project(":grobid-trainer") {
         args 'nlm', getArg('p2t', '.'), getArg('run', '0'), getArg('fileRatio', '1.0'), getArg('flavor', '')
         def javaLibraryPath = getJavaLibraryPath()
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
-            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
+                    "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED" // Required for LMDB
         } else {
             jvmArgs '-Xmx3072m'
         }
@@ -612,7 +614,9 @@ project(":grobid-trainer") {
         def javaLibraryPath = getJavaLibraryPath()
         
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
-            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
+                    "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED" // Required for LMDB
         } else {
             jvmArgs '-Xmx3072m'
         }
@@ -626,7 +630,9 @@ project(":grobid-trainer") {
         def javaLibraryPath = getJavaLibraryPath()
 
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
-            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
+                    "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED" // Required for LMDB
         } else {
             jvmArgs '-Xmx3072m'
         }
@@ -642,7 +648,9 @@ project(":grobid-trainer") {
         def javaLibraryPath = getJavaLibraryPath()
 
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
-            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+            jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
+                    "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED" // Required for LMDB
         } else {
             jvmArgs '-Xmx3072m'
         }

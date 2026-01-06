@@ -1,5 +1,6 @@
 package org.grobid.core.engines.tagging;
 
+import com.google.common.base.Joiner;
 import org.grobid.core.GrobidModel;
 import org.grobid.core.engines.tagging.delft.DeLFTOnnxModel;
 import org.slf4j.Logger;
@@ -11,7 +12,7 @@ import java.io.IOException;
 /**
  * ONNX-based tagger for sequence labeling.
  * Uses DeLFT models exported to ONNX format with CRF decoding in pure Java.
- * 
+ *
  * This tagger provides a pure Java alternative to the DeLFT tagger, which
  * requires
  * Python/JEP at runtime. ONNX models are loaded from directories with the
@@ -27,7 +28,7 @@ public class OnnxTagger implements GenericTagger {
 
     /**
      * Create an ONNX tagger for the given model.
-     * 
+     *
      * @param grobidModel  The GROBID model to use
      * @param architecture The DeLFT architecture (e.g., "BidLSTM_CRF_FEATURES") -
      *                     not used, included for API compatibility
@@ -50,11 +51,7 @@ public class OnnxTagger implements GenericTagger {
 
     @Override
     public String label(Iterable<String> data) {
-        StringBuilder sb = new StringBuilder();
-        for (String line : data) {
-            sb.append(line).append("\n");
-        }
-        return label(sb.toString());
+        return label(Joiner.on('\n').join(data));
     }
 
     @Override

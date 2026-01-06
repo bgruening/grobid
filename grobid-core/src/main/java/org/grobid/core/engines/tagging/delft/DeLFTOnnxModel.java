@@ -14,6 +14,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -227,7 +228,11 @@ public class DeLFTOnnxModel implements Closeable {
     }
 
     /**
-     * Label GROBID-formatted input data.
+     * Label GROBID-formatted input data with support for long sequences.
+     * 
+     * For sequences exceeding maxSeqLength, this method chunks the sequence,
+     * runs inference on each chunk independently, and concatenates the results.
+     * This matches the behavior of DeLFT's Python grobidTagger.tag() method.
      * 
      * Input format: token\tfeature1\tfeature2\t...\n
      * Output format: token\tfeature1\tfeature2\t...\tlabel\n
@@ -237,69 +242,62 @@ public class DeLFTOnnxModel implements Closeable {
      */
     public String labelGrobidInput(String data) {
         try {
-            // Parse input lines
-            String[] lines = data.split("\n");
-            List<String[]> tokensWithFeatures = new ArrayList<>();
-            List<Integer> emptyLineIndices = new ArrayList<>();
+            // Parse input into sequences (separated by empty lines)
+            List<List<String>> sequences = new ArrayList<>();
+            List<String> currentSequence = new ArrayList<>();
 
-            for (int i = 0; i < lines.length; i++) {
-                String line = lines[i];
+            String[] lines = data.split("\n", -1); // -1 to keep trailing empty strings
+
+            for (String line : lines) {
                 if (line.trim().isEmpty()) {
-                    emptyLineIndices.add(i);
-                    continue;
+                    if (!currentSequence.isEmpty()) {
+                        sequences.add(currentSequence);
+                        currentSequence = new ArrayList<>();
+                    }
+                } else {
+                    currentSequence.add(line);
                 }
-                String[] parts = line.split("[\\t\\s]+");
-                tokensWithFeatures.add(parts);
+            }
+            // Don't forget the last sequence if it doesn't end with empty line
+            if (!currentSequence.isEmpty()) {
+                sequences.add(currentSequence);
             }
 
-            if (tokensWithFeatures.isEmpty()) {
+            if (sequences.isEmpty()) {
                 return "";
             }
 
-            // Extract tokens and features
-            String[] tokens = new String[tokensWithFeatures.size()];
-            String[][] features = null;
+            // Process each sequence independently (with chunking if needed)
+            List<List<String>> allSequenceLabels = new ArrayList<>();
 
-            for (int i = 0; i < tokensWithFeatures.size(); i++) {
-                String[] parts = tokensWithFeatures.get(i);
-                tokens[i] = parts[0];
-
-                if (parts.length > 1 && features == null) {
-                    features = new String[tokensWithFeatures.size()][parts.length - 1];
-                }
-                if (features != null) {
-                    for (int j = 1; j < parts.length; j++) {
-                        features[i][j - 1] = parts[j];
-                    }
-                }
+            for (List<String> sequence : sequences) {
+                List<String> sequenceLabels = labelSequenceWithChunking(sequence);
+                allSequenceLabels.add(sequenceLabels);
             }
 
-            // Run annotation
-            AnnotationResult result = annotateTokens(tokens, features);
-            String[] labels = result.getLabels();
-
-            // Build output - reconstruct with original line structure
-            // We need to preserve the separator format: if input has N consecutive empty
-            // lines,
-            // output should also have exactly one empty line as separator (matching DeLFT
-            // behavior)
+            // Rebuild output with original structure
             StringBuilder output = new StringBuilder();
-            int tokenIdx = 0;
-            boolean previousWasEmpty = false;
-            for (int i = 0; i < lines.length; i++) {
-                String line = lines[i];
+            int seqIdx = 0;
+            int tokenInSeqIdx = 0;
+            boolean inSequence = false;
+
+            for (String line : lines) {
                 if (line.trim().isEmpty()) {
-                    // Only add one newline for consecutive empty lines (batch separator)
-                    if (!previousWasEmpty) {
+                    if (inSequence && seqIdx < sequences.size()) {
+                        // End of a sequence - add separator
                         output.append("\n");
-                        previousWasEmpty = true;
+                        seqIdx++;
+                        tokenInSeqIdx = 0;
+                        inSequence = false;
                     }
                 } else {
-                    if (tokenIdx < labels.length) {
-                        output.append(line).append("\t").append(labels[tokenIdx]).append("\n");
-                        tokenIdx++;
+                    inSequence = true;
+                    if (seqIdx < allSequenceLabels.size() &&
+                            tokenInSeqIdx < allSequenceLabels.get(seqIdx).size()) {
+                        String label = allSequenceLabels.get(seqIdx).get(tokenInSeqIdx);
+                        output.append(line).append("\t").append(label).append("\n");
+                        tokenInSeqIdx++;
                     }
-                    previousWasEmpty = false;
                 }
             }
 
@@ -307,6 +305,78 @@ public class DeLFTOnnxModel implements Closeable {
         } catch (OrtException e) {
             throw new RuntimeException("ONNX inference failed", e);
         }
+    }
+
+    /**
+     * Label a single sequence, chunking if it exceeds maxSeqLength.
+     * 
+     * @param sequenceLines Lines of the sequence (token\tfeatures format)
+     * @return List of labels, one per token
+     */
+    private List<String> labelSequenceWithChunking(List<String> sequenceLines) throws OrtException {
+        // Parse tokens and features from the sequence
+        List<String[]> tokensWithFeatures = new ArrayList<>();
+        for (String line : sequenceLines) {
+            String[] parts = line.split("[\\t\\s]+");
+            tokensWithFeatures.add(parts);
+        }
+
+        int totalTokens = tokensWithFeatures.size();
+
+        // If sequence fits in one chunk, process directly
+        if (totalTokens <= maxSeqLength) {
+            return labelTokensWithFeatures(tokensWithFeatures);
+        }
+
+        // Chunk the sequence and process each chunk
+        List<String> allLabels = new ArrayList<>();
+        int offset = 0;
+
+        while (offset < totalTokens) {
+            int chunkEnd = Math.min(offset + maxSeqLength, totalTokens);
+            List<String[]> chunk = tokensWithFeatures.subList(offset, chunkEnd);
+
+            List<String> chunkLabels = labelTokensWithFeatures(chunk);
+            allLabels.addAll(chunkLabels);
+
+            offset = chunkEnd;
+        }
+
+        return allLabels;
+    }
+
+    /**
+     * Label a list of tokens with features.
+     * 
+     * @param tokensWithFeatures Each element is [token, feature1, feature2, ...]
+     * @return List of labels
+     */
+    private List<String> labelTokensWithFeatures(List<String[]> tokensWithFeatures) throws OrtException {
+        if (tokensWithFeatures.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Extract tokens and features
+        String[] tokens = new String[tokensWithFeatures.size()];
+        String[][] features = null;
+
+        for (int i = 0; i < tokensWithFeatures.size(); i++) {
+            String[] parts = tokensWithFeatures.get(i);
+            tokens[i] = parts[0];
+
+            if (parts.length > 1 && features == null) {
+                features = new String[tokensWithFeatures.size()][parts.length - 1];
+            }
+            if (features != null) {
+                for (int j = 1; j < parts.length; j++) {
+                    features[i][j - 1] = parts[j];
+                }
+            }
+        }
+
+        // Run annotation
+        AnnotationResult result = annotateTokens(tokens, features);
+        return Arrays.asList(result.getLabels());
     }
 
     @Override

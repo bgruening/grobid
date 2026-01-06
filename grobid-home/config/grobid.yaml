@@ -267,10 +267,13 @@ grobid:
         architecture: "BidLSTM_CRF"
 
     - name: "affiliation-address"
-      engine: "wapiti"
+#      engine: "wapiti"
       #engine: "delft"
+      engine: "onnx"
       delft:
         # deep learning parameters
+        architecture: "BidLSTM_CRF_FEATURES"
+      onnx:
         architecture: "BidLSTM_CRF_FEATURES"
 
     - name: "citation"
@@ -320,8 +323,9 @@ grobid:
           batch_size: 40
 
     - name: "funding-acknowledgement"
-      engine: "wapiti"
+#      engine: "wapiti"
       #engine: "delft"
+      engine: "onnx"
       wapiti:
         # wapiti training parameters, they will be used at training time only
         epsilon: 0.00001
@@ -341,6 +345,8 @@ grobid:
           # parameters used for training
           max_sequence_length: 500  
           batch_size: 40
+      onnx:
+        architecture: "BidLSTM_CRF_FEATURES"
 
     - name: "copyright"
       # at this time, we only have a DeLFT implementation, 

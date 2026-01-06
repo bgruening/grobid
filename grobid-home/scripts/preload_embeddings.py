@@ -24,12 +24,12 @@ import lmdb
 import json
 import struct
 
-map_size = 100 * 1024 * 1024 * 1024 
+map_size = 100 * 1024 * 1024 * 1024
 
 def preload(embeddings_name, input_path=None, registry_path=None):
     """
     Preload embeddings into LMDB database as raw float32 bytes.
-    
+
     Args:
         embeddings_name: Name of the embeddings (e.g., 'glove-840B')
         input_path: Optional path to embeddings file
@@ -81,93 +81,104 @@ def preload(embeddings_name, input_path=None, registry_path=None):
 def load_embeddings_raw_format(embeddings, embeddings_name, embeddings_path):
     """
     Load embeddings from file and store as raw float32 bytes in LMDB.
-    
+
     This format is compatible with Java's WordEmbeddings class which expects
     little-endian float32 arrays without pickle serialization.
     """
     print(f"Loading embeddings from {embeddings_path} in raw float32 format...")
-    
+
     embedding_file = open_embedding_file(embeddings_path)
     if embedding_file is None:
         print("Error: could not open embeddings file", embeddings_path)
         return
-    
+
     # Create LMDB environment
     embedding_lmdb_path = embeddings.registry["embedding-lmdb-path"]
     if not os.path.isdir(embedding_lmdb_path):
         os.makedirs(embedding_lmdb_path)
-    
+
     env_path = os.path.join(embedding_lmdb_path, embeddings_name)
     env = lmdb.open(env_path, map_size=map_size)
-    
+
+    max_key_size = env.max_key_size()  # Get the max key size for this LMDB instance
+
     count = 0
+    skipped = 0
     batch_size = 10000
     batch = []
-    
+
     # Read header line for some formats (e.g., word2vec binary)
     first_line = True
     embedding_dim = None
-    
+
     for line in embedding_file:
         try:
             if isinstance(line, bytes):
                 line = line.decode('utf-8', errors='ignore')
-            
+
             line = line.rstrip()
             if not line:
                 continue
-            
+
             parts = line.split(' ')
             if len(parts) < 10:  # Skip header or malformed lines
                 if first_line:
                     first_line = False
                     continue
                 continue
-            
+
             first_line = False
             word = parts[0]
-            
+
             # Parse vector values
             try:
                 values = [float(x) for x in parts[1:] if x]
             except ValueError:
                 continue
-            
+
             if embedding_dim is None:
                 embedding_dim = len(values)
                 print(f"Detected embedding dimension: {embedding_dim}")
-            
+
             if len(values) != embedding_dim:
                 continue
-            
+
+            # Check key size before storing (LMDB has a max key size, typically 511 bytes)
+            key = word.encode('utf-8')
+            if len(key) >= max_key_size:
+                skipped += 1
+                continue
+
             # Convert to raw float32 bytes (little-endian)
             raw_bytes = struct.pack(f'<{len(values)}f', *values)
-            
-            batch.append((word.encode('utf-8'), raw_bytes))
+
+            batch.append((key, raw_bytes))
             count += 1
-            
+
             if len(batch) >= batch_size:
                 with env.begin(write=True) as txn:
-                    for key, value in batch:
-                        txn.put(key, value)
+                    for k, v in batch:
+                        txn.put(k, v)
                 batch = []
                 if count % 100000 == 0:
                     print(f"Processed {count} embeddings...")
-        
+
         except Exception as e:
             print(f"Error processing line: {e}")
             continue
-    
+
     # Write remaining batch
     if batch:
         with env.begin(write=True) as txn:
-            for key, value in batch:
-                txn.put(key, value)
-    
+            for k, v in batch:
+                txn.put(k, v)
+
     embedding_file.close()
     env.close()
-    
+
     print(f"Loaded {count} embeddings with dimension {embedding_dim}")
+    if skipped > 0:
+        print(f"Skipped {skipped} entries with keys exceeding max key size ({max_key_size} bytes)")
     print(f"Stored in raw float32 format at: {env_path}")
 
 

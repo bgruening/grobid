@@ -33,7 +33,8 @@ public class WordEmbeddings implements Closeable {
      * 
      * @param dbPath        Path to the LMDB database directory
      * @param embeddingSize Dimension of the embeddings
-     * @throws IOException if the database path does not exist
+     * @throws IOException if the database cannot be opened (missing path, LMDB
+     *                     error, or native library issue)
      */
     public WordEmbeddings(Path dbPath, int embeddingSize) throws IOException {
         this.embeddingSize = embeddingSize;
@@ -49,14 +50,23 @@ public class WordEmbeddings implements Closeable {
                     "\nLMDB databases are directories containing 'data.mdb' and 'lock.mdb' files.");
         }
 
-        // Open LMDB environment
-        this.env = Env.create()
-                .setMapSize(10_000_000_000L) // 10GB max
-                .setMaxDbs(1)
-                .open(dbPath.toFile());
+        try {
+            // Open LMDB environment
+            this.env = Env.create()
+                    .setMapSize(10_000_000_000L) // 10GB max
+                    .setMaxDbs(1)
+                    .open(dbPath.toFile());
 
-        // Open the default database
-        this.dbi = env.openDbi((String) null, DbiFlags.MDB_CREATE);
+            // Open the default database
+            this.dbi = env.openDbi((String) null, DbiFlags.MDB_CREATE);
+        } catch (LmdbException e) {
+            throw new IOException("Failed to open LMDB database at " + dbPath.toAbsolutePath() +
+                    ": " + e.getMessage(), e);
+        } catch (UnsatisfiedLinkError e) {
+            throw new IOException("LMDB native library failed to load. " +
+                    "Ensure lmdbjava dependency includes native libraries for your platform. " +
+                    "Error: " + e.getMessage(), e);
+        }
 
         LOGGER.info("Opened LMDB database at {}", dbPath);
     }
@@ -66,6 +76,7 @@ public class WordEmbeddings implements Closeable {
      * 
      * @param word The word to look up
      * @return Embedding vector, or zero vector if not found
+     * @throws RuntimeException if LMDB database access fails
      */
     public float[] getEmbedding(String word) {
         // Normalize digits to "0" like Python's _normalize_num
@@ -90,6 +101,9 @@ public class WordEmbeddings implements Closeable {
                 embedding[i] = valueBuffer.getFloat();
             }
             return embedding;
+        } catch (LmdbException e) {
+            throw new RuntimeException(
+                    "LMDB database error during embedding lookup for word '" + word + "': " + e.getMessage(), e);
         }
     }
 
@@ -128,6 +142,8 @@ public class WordEmbeddings implements Closeable {
 
     /**
      * Check if a word exists in the database.
+     * 
+     * @throws RuntimeException if LMDB database access fails
      */
     public boolean contains(String word) {
         byte[] keyBytes = word.getBytes(StandardCharsets.UTF_8);
@@ -136,6 +152,8 @@ public class WordEmbeddings implements Closeable {
 
         try (Txn<ByteBuffer> txn = env.txnRead()) {
             return dbi.get(txn, keyBuffer) != null;
+        } catch (LmdbException e) {
+            throw new RuntimeException("LMDB database error checking word '" + word + "': " + e.getMessage(), e);
         }
     }
 

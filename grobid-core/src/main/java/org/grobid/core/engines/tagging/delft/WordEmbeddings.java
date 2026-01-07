@@ -68,6 +68,9 @@ public class WordEmbeddings implements Closeable {
                     "Error: " + e.getMessage(), e);
         }
 
+        // Validate that the database contains raw float32 format (not pickled numpy)
+        validateEmbeddingFormat(dbPath);
+
         LOGGER.info("Opened LMDB database at {}", dbPath);
     }
 
@@ -159,6 +162,49 @@ public class WordEmbeddings implements Closeable {
 
     public int getEmbeddingSize() {
         return embeddingSize;
+    }
+
+    /**
+     * Validate that the embeddings database contains raw float32 format.
+     * 
+     * If the database contains pickled numpy arrays (the old DeLFT format),
+     * the bytes will be interpreted as garbage floats with extreme values.
+     * This validation fails fast at startup with a clear error message.
+     * 
+     * @param dbPath Path to the database (for error messages)
+     * @throws IOException if validation fails
+     */
+    private void validateEmbeddingFormat(Path dbPath) throws IOException {
+        // Common test words that should exist in any GloVe/word2vec vocabulary
+        String[] testWords = { "the", "and", "of", "to", "in" };
+        final float MAX_VALID_VALUE = 10.0f; // GloVe values are typically < 5
+
+        for (String testWord : testWords) {
+            if (contains(testWord)) {
+                float[] embedding = getEmbedding(testWord);
+
+                for (int i = 0; i < embedding.length; i++) {
+                    float value = embedding[i];
+
+                    if (Float.isNaN(value) || Float.isInfinite(value) || Math.abs(value) > MAX_VALID_VALUE) {
+                        close(); // Clean up before throwing
+                        throw new IOException(
+                                "Embeddings database at " + dbPath.toAbsolutePath() + " appears to contain " +
+                                        "pickled numpy format instead of raw float32.\n" +
+                                        "Found invalid embedding value for word '" + testWord + "': " +
+                                        (Float.isNaN(value) ? "NaN" : Float.isInfinite(value) ? "Infinity" : value) +
+                                        " at index " + i + ".\n" +
+                                        "Please regenerate embeddings using:\n" +
+                                        "  python3 grobid-home/scripts/preload_embeddings.py --embedding glove-840B");
+                    }
+                }
+
+                LOGGER.debug("Embeddings format validation passed for word '{}'", testWord);
+                return; // Validation passed for one word, that's enough
+            }
+        }
+
+        LOGGER.warn("Could not validate embeddings format - none of the test words found in database");
     }
 
     @Override

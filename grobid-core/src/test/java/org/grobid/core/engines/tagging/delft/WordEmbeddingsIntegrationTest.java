@@ -85,6 +85,11 @@ public class WordEmbeddingsIntegrationTest {
             sumSquares += f * f;
         }
         assertThat("Embedding for 'the' should not be all zeros", sumSquares, greaterThan(0.0));
+
+        // Validate embedding values are in expected range for GloVe
+        // If LMDB contains pickled numpy format (not raw float32), values will be
+        // garbage
+        validateEmbeddingValuesInRange(embedding, "the");
     }
 
     @Test
@@ -150,5 +155,47 @@ public class WordEmbeddingsIntegrationTest {
             sumSquares += f * f;
         }
         assertThat("Unknown word should return zero vector", sumSquares, is(0.0));
+    }
+
+    /**
+     * Validates that embedding values are in expected range for GloVe embeddings.
+     * 
+     * GloVe embeddings typically have values in the range of approximately -5 to 5.
+     * If the LMDB database contains pickled numpy format instead of raw float32,
+     * the bytes will be interpreted as garbage floats with extreme values (often
+     * very large or NaN/Infinity).
+     * 
+     * @param embedding The embedding vector to validate
+     * @param word      The word being looked up (for error messages)
+     */
+    private void validateEmbeddingValuesInRange(float[] embedding, String word) {
+        final float MAX_VALID_VALUE = 10.0f; // GloVe values are typically < 5
+
+        for (int i = 0; i < embedding.length; i++) {
+            float value = embedding[i];
+
+            // Check for NaN or Infinity (common when interpreting pickle bytes as float)
+            assertTrue(
+                    String.format("Embedding for '%s' contains NaN at index %d. " +
+                            "This suggests the LMDB database contains pickled numpy format " +
+                            "instead of raw float32. Please regenerate embeddings using: " +
+                            "python3 grobid-home/scripts/preload_embeddings.py --embedding glove-840B",
+                            word, i),
+                    !Float.isNaN(value));
+
+            assertTrue(
+                    String.format("Embedding for '%s' contains Infinity at index %d. " +
+                            "This suggests the LMDB database contains pickled numpy format " +
+                            "instead of raw float32.", word, i),
+                    !Float.isInfinite(value));
+
+            // Check for extreme values (pickled data often produces very large floats)
+            assertTrue(
+                    String.format("Embedding for '%s' has extreme value %.2f at index %d " +
+                            "(expected range: -%.0f to %.0f). This suggests the LMDB database " +
+                            "contains pickled numpy format instead of raw float32.",
+                            word, value, i, MAX_VALID_VALUE, MAX_VALID_VALUE),
+                    Math.abs(value) <= MAX_VALID_VALUE);
+        }
     }
 }

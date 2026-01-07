@@ -35,50 +35,54 @@ Note: with CRF only models runtime is 304s (0.30 seconds per PDF) with 4 CPU, 8 
 
 Evaluation on 1000 random PDF files out of 998 PDF (ratio 1.0).
 
+## Header metadata
+
+Evaluation on 1000 random PDF files out of 998 PDF (ratio 1.0).
+
 #### Strict Matching (exact matches)
 
 **Field-level results**
 
 | label                       | precision | recall    | f1        | support |
 |-----------------------------|-----------|-----------|-----------|---------|
-| abstract                    | 13.33     | 13.33     | 13.33     | 960     |
-| authors                     | 99.07     | 99.07     | 99.07     | 969     |
-| first_author                | 99.28     | 99.28     | 99.28     | 969     |
+| abstract                    | 13.02     | 13.44     | 13.22     | 960     |
+| authors                     | 57.37     | 57.07     | 57.22     | 969     |
+| first_author                | 83.92     | 83.49     | 83.7      | 969     |
 | keywords                    | 0         | 0         | 0         | 0       |
-| title                       | 95.97     | 95.3      | 95.63     | 1000    |
+| title                       | 69        | 68.1      | 68.55     | 1000    |
 |                             |           |           |           |         |
-| **all fields (micro avg.)** | **77.18** | **77.04** | **77.11** | 3898    |
-| all fields (macro avg.)     | 76.91     | 76.75     | 76.83     | 3898    |
+| **all fields (micro avg.)** | **55.61** | **55.72** | **55.66** | 3898    |
+| all fields (macro avg.)     | 55.83     | 55.52     | 55.67     | 3898    |
 
 #### Soft Matching (ignoring punctuation, case and space characters mismatches)
 
 **Field-level results**
 
-| label                       | precision | recall    | f1       | support |
-|-----------------------------|-----------|-----------|----------|---------|
-| abstract                    | 50.52     | 50.52     | 50.52    | 960     |
-| authors                     | 99.07     | 99.07     | 99.07    | 969     |
-| first_author                | 99.28     | 99.28     | 99.28    | 969     |
-| keywords                    | 0         | 0         | 0        | 0       |
-| title                       | 99.6      | 98.9      | 99.25    | 1000    |
-|                             |           |           |          |         |
-| **all fields (micro avg.)** | **87.28** | **87.12** | **87.2** | 3898    |
-| all fields (macro avg.)     | 87.12     | 86.94     | 87.03    | 3898    |
+| label                       | precision | recall    | f1        | support |
+|-----------------------------|-----------|-----------|-----------|---------|
+| abstract                    | 49.24     | 50.83     | 50.03     | 960     |
+| authors                     | 59.02     | 58.72     | 58.87     | 969     |
+| first_author                | 84.13     | 83.69     | 83.91     | 969     |
+| keywords                    | 0         | 0         | 0         | 0       |
+| title                       | 84.5      | 83.4      | 83.95     | 1000    |
+|                             |           |           |           |         |
+| **all fields (micro avg.)** | **69.18** | **69.32** | **69.25** | 3898    |
+| all fields (macro avg.)     | 69.22     | 69.16     | 69.19     | 3898    |
 
 #### Levenshtein Matching (Minimum Levenshtein distance at 0.8)
 
 **Field-level results**
 
-| label                       | precision | recall    | f1       | support |
-|-----------------------------|-----------|-----------|----------|---------|
-| abstract                    | 76.67     | 76.67     | 76.67    | 960     |
-| authors                     | 99.48     | 99.48     | 99.48    | 969     |
-| first_author                | 99.38     | 99.38     | 99.38    | 969     |
-| keywords                    | 0         | 0         | 0        | 0       |
-| title                       | 99.7      | 99        | 99.35    | 1000    |
-|                             |           |           |          |         |
-| **all fields (micro avg.)** | **93.88** | **93.71** | **93.8** | 3898    |
-| all fields (macro avg.)     | 93.81     | 93.63     | 93.72    | 3898    |
+| label                       | precision | recall    | f1        | support |
+|-----------------------------|-----------|-----------|-----------|---------|
+| abstract                    | 74.87     | 77.29     | 76.06     | 960     |
+| authors                     | 86.93     | 86.48     | 86.7      | 969     |
+| first_author                | 85.68     | 85.24     | 85.46     | 969     |
+| keywords                    | 0         | 0         | 0         | 0       |
+| title                       | 97.26     | 96        | 96.63     | 1000    |
+|                             |           |           |           |         |
+| **all fields (micro avg.)** | **86.18** | **86.35** | **86.26** | 3898    |
+| all fields (macro avg.)     | 86.19     | 86.25     | 86.21     | 3898    |
 
 #### Ratcliff/Obershelp Matching (Minimum Ratcliff/Obershelp similarity at 0.95)
 
@@ -86,28 +90,28 @@ Evaluation on 1000 random PDF files out of 998 PDF (ratio 1.0).
 
 | label                       | precision | recall    | f1        | support |
 |-----------------------------|-----------|-----------|-----------|---------|
-| abstract                    | 66.56     | 66.56     | 66.56     | 960     |
-| authors                     | 99.38     | 99.38     | 99.38     | 969     |
-| first_author                | 99.28     | 99.28     | 99.28     | 969     |
+| abstract                    | 65.09     | 67.19     | 66.12     | 960     |
+| authors                     | 69.71     | 69.35     | 69.53     | 969     |
+| first_author                | 84.02     | 83.59     | 83.81     | 969     |
 | keywords                    | 0         | 0         | 0         | 0       |
-| title                       | 99.7      | 99        | 99.35     | 1000    |
+| title                       | 93.01     | 91.8      | 92.4      | 1000    |
 |                             |           |           |           |         |
-| **all fields (micro avg.)** | **91.34** | **91.17** | **91.26** | 3898    |
-| all fields (macro avg.)     | 91.23     | 91.06     | 91.14     | 3898    |
+| **all fields (micro avg.)** | **77.96** | **78.12** | **78.04** | 3898    |
+| all fields (macro avg.)     | 77.96     | 77.98     | 77.96     | 3898    |
 
 #### Instance-level results
 
 ```
-Total expected instances:       1000
-Total correct instances:        142 (strict)
-Total correct instances:        491 (soft)
-Total correct instances:        729 (Levenshtein)
-Total correct instances:        641 (ObservedRatcliffObershelp)
+Total expected instances: 	1000
+Total correct instances: 	72 (strict) 
+Total correct instances: 	298 (soft) 
+Total correct instances: 	601 (Levenshtein) 
+Total correct instances: 	439 (ObservedRatcliffObershelp) 
 
-Instance-level recall:  14.2    (strict)
-Instance-level recall:  49.1    (soft)
-Instance-level recall:  72.9    (Levenshtein)
-Instance-level recall:  64.1    (RatcliffObershelp)
+Instance-level recall:	7.2	(strict) 
+Instance-level recall:	29.8	(soft) 
+Instance-level recall:	60.1	(Levenshtein) 
+Instance-level recall:	43.9	(RatcliffObershelp) 
 ```
 
 ## Citation metadata
@@ -120,17 +124,17 @@ Evaluation on 1000 random PDF files out of 998 PDF (ratio 1.0).
 
 | label                       | precision | recall    | f1        | support |
 |-----------------------------|-----------|-----------|-----------|---------|
-| authors                     | 81.18     | 78.43     | 79.78     | 44770   |
-| date                        | 84.64     | 81.25     | 82.91     | 45457   |
-| first_author                | 91.49     | 88.36     | 89.9      | 44770   |
-| inTitle                     | 81.69     | 83.58     | 82.62     | 42795   |
-| issue                       | 93.63     | 92.71     | 93.17     | 18983   |
-| page                        | 93.72     | 77.57     | 84.88     | 40844   |
-| title                       | 59.97     | 60.48     | 60.23     | 43101   |
-| volume                      | 95.91     | 96.12     | 96.02     | 40458   |
+| authors                     | 81.1      | 77.96     | 79.49     | 44770   |
+| date                        | 84.27     | 80.33     | 82.25     | 45457   |
+| first_author                | 91.33     | 87.77     | 89.51     | 44770   |
+| inTitle                     | 81.71     | 83.51     | 82.6      | 42795   |
+| issue                       | 91.98     | 89.6      | 90.77     | 18983   |
+| page                        | 93.59     | 77.77     | 84.95     | 40844   |
+| title                       | 59.93     | 59.93     | 59.93     | 43101   |
+| volume                      | 94.88     | 95.2      | 95.04     | 40458   |
 |                             |           |           |           |         |
-| **all fields (micro avg.)** | **84.25** | **81.46** | **82.83** | 321178  |
-| all fields (macro avg.)     | 85.28     | 82.31     | 83.69     | 321178  |
+| **all fields (micro avg.)** | **83.93** | **80.82** | **82.35** | 321178  |
+| all fields (macro avg.)     | 84.85     | 81.51     | 83.07     | 321178  |
 
 #### Soft Matching (ignoring punctuation, case and space characters mismatches)
 
@@ -138,17 +142,17 @@ Evaluation on 1000 random PDF files out of 998 PDF (ratio 1.0).
 
 | label                       | precision | recall    | f1        | support |
 |-----------------------------|-----------|-----------|-----------|---------|
-| authors                     | 81.5      | 78.74     | 80.09     | 44770   |
-| date                        | 84.64     | 81.25     | 82.91     | 45457   |
-| first_author                | 91.71     | 88.57     | 90.11     | 44770   |
-| inTitle                     | 85.52     | 87.51     | 86.5      | 42795   |
-| issue                       | 93.63     | 92.71     | 93.17     | 18983   |
-| page                        | 93.72     | 77.57     | 84.88     | 40844   |
-| title                       | 91.98     | 92.75     | 92.37     | 43101   |
-| volume                      | 95.91     | 96.12     | 96.02     | 40458   |
+| authors                     | 81.43     | 78.28     | 79.83     | 44770   |
+| date                        | 84.27     | 80.33     | 82.25     | 45457   |
+| first_author                | 91.56     | 87.99     | 89.74     | 44770   |
+| inTitle                     | 85.55     | 87.44     | 86.48     | 42795   |
+| issue                       | 91.98     | 89.6      | 90.77     | 18983   |
+| page                        | 93.59     | 77.77     | 84.95     | 40844   |
+| title                       | 91.97     | 91.97     | 91.97     | 43101   |
+| volume                      | 94.88     | 95.2      | 95.04     | 40458   |
 |                             |           |           |           |         |
-| **all fields (micro avg.)** | **89.34** | **86.38** | **87.84** | 321178  |
-| all fields (macro avg.)     | 89.83     | 86.9      | 88.26     | 321178  |
+| **all fields (micro avg.)** | **89.02** | **85.72** | **87.34** | 321178  |
+| all fields (macro avg.)     | 89.41     | 86.07     | 87.63     | 321178  |
 
 #### Levenshtein Matching (Minimum Levenshtein distance at 0.8)
 
@@ -156,88 +160,88 @@ Evaluation on 1000 random PDF files out of 998 PDF (ratio 1.0).
 
 | label                       | precision | recall    | f1        | support |
 |-----------------------------|-----------|-----------|-----------|---------|
-| authors                     | 90.66     | 87.59     | 89.09     | 44770   |
-| date                        | 84.64     | 81.25     | 82.91     | 45457   |
-| first_author                | 92.25     | 89.09     | 90.64     | 44770   |
-| inTitle                     | 86.46     | 88.48     | 87.46     | 42795   |
-| issue                       | 93.63     | 92.71     | 93.17     | 18983   |
-| page                        | 93.72     | 77.57     | 84.88     | 40844   |
-| title                       | 94.58     | 95.38     | 94.98     | 43101   |
-| volume                      | 95.91     | 96.12     | 96.02     | 40458   |
+| authors                     | 90.55     | 87.04     | 88.76     | 44770   |
+| date                        | 84.27     | 80.33     | 82.25     | 45457   |
+| first_author                | 92.09     | 88.5      | 90.26     | 44770   |
+| inTitle                     | 86.33     | 88.23     | 87.27     | 42795   |
+| issue                       | 91.98     | 89.6      | 90.77     | 18983   |
+| page                        | 93.59     | 77.77     | 84.95     | 40844   |
+| title                       | 94.58     | 94.58     | 94.58     | 43101   |
+| volume                      | 94.88     | 95.2      | 95.04     | 40458   |
 |                             |           |           |           |         |
-| **all fields (micro avg.)** | **91.19** | **88.17** | **89.65** | 321178  |
-| all fields (macro avg.)     | 91.48     | 88.52     | 89.89     | 321178  |
+| **all fields (micro avg.)** | **90.84** | **87.47** | **89.12** | 321178  |
+| all fields (macro avg.)     | 91.03     | 87.66     | 89.24     | 321178  |
 
 #### Ratcliff/Obershelp Matching (Minimum Ratcliff/Obershelp similarity at 0.95)
 
 **Field-level results**
 
-| label                       | precision | recall    | f1       | support |
-|-----------------------------|-----------|-----------|----------|---------|
-| authors                     | 84.94     | 82.07     | 83.48    | 44770   |
-| date                        | 84.64     | 81.25     | 82.91    | 45457   |
-| first_author                | 91.49     | 88.36     | 89.9     | 44770   |
-| inTitle                     | 85.17     | 87.15     | 86.15    | 42795   |
-| issue                       | 93.63     | 92.71     | 93.17    | 18983   |
-| page                        | 93.72     | 77.57     | 84.88    | 40844   |
-| title                       | 93.97     | 94.76     | 94.36    | 43101   |
-| volume                      | 95.91     | 96.12     | 96.02    | 40458   |
-|                             |           |           |          |         |
-| **all fields (micro avg.)** | **90.02** | **87.04** | **88.5** | 321178  |
-| all fields (macro avg.)     | 90.43     | 87.5      | 88.86    | 321178  |
+| label                       | precision | recall    | f1        | support |
+|-----------------------------|-----------|-----------|-----------|---------|
+| authors                     | 84.87     | 81.59     | 83.2      | 44770   |
+| date                        | 84.27     | 80.33     | 82.25     | 45457   |
+| first_author                | 91.33     | 87.77     | 89.51     | 44770   |
+| inTitle                     | 85.17     | 87.05     | 86.1      | 42795   |
+| issue                       | 91.98     | 89.6      | 90.77     | 18983   |
+| page                        | 93.59     | 77.77     | 84.95     | 40844   |
+| title                       | 93.9      | 93.9      | 93.9      | 43101   |
+| volume                      | 94.88     | 95.2      | 95.04     | 40458   |
+|                             |           |           |           |         |
+| **all fields (micro avg.)** | **89.68** | **86.35** | **87.99** | 321178  |
+| all fields (macro avg.)     | 90        | 86.65     | 88.22     | 321178  |
 
 #### Instance-level results
 
 ```
-Total expected instances:               48449
-Total extracted instances:              48221
-Total correct instances:                13495 (strict)
-Total correct instances:                22265 (soft)
-Total correct instances:                24914 (Levenshtein)
-Total correct instances:                23267 (RatcliffObershelp)
+Total expected instances: 		48449
+Total extracted instances: 		48947
+Total correct instances: 		13305 (strict) 
+Total correct instances: 		21985 (soft) 
+Total correct instances: 		24553 (Levenshtein) 
+Total correct instances: 		22959 (RatcliffObershelp) 
 
-Instance-level precision:       27.99 (strict)
-Instance-level precision:       46.17 (soft)
-Instance-level precision:       51.67 (Levenshtein)
-Instance-level precision:       48.25 (RatcliffObershelp)
+Instance-level precision:	27.18 (strict) 
+Instance-level precision:	44.92 (soft) 
+Instance-level precision:	50.16 (Levenshtein) 
+Instance-level precision:	46.91 (RatcliffObershelp) 
 
-Instance-level recall:  27.85   (strict)
-Instance-level recall:  45.96   (soft)
-Instance-level recall:  51.42   (Levenshtein)
-Instance-level recall:  48.02   (RatcliffObershelp)
+Instance-level recall:	27.46	(strict) 
+Instance-level recall:	45.38	(soft) 
+Instance-level recall:	50.68	(Levenshtein) 
+Instance-level recall:	47.39	(RatcliffObershelp) 
 
-Instance-level f-score: 27.92 (strict)
-Instance-level f-score: 46.06 (soft)
-Instance-level f-score: 51.54 (Levenshtein)
-Instance-level f-score: 48.14 (RatcliffObershelp)
+Instance-level f-score:	27.32 (strict) 
+Instance-level f-score:	45.15 (soft) 
+Instance-level f-score:	50.42 (Levenshtein) 
+Instance-level f-score:	47.15 (RatcliffObershelp) 
 
-Matching 1 :    35376
+Matching 1 :	34852
 
-Matching 2 :    1259
+Matching 2 :	1274
 
-Matching 3 :    3266
+Matching 3 :	3388
 
-Matching 4 :    1799
+Matching 4 :	2026
 
-Total matches : 41700
+Total matches :	41540
 ```
 
 #### Citation context resolution
 
 ```
 
-Total expected references:       48449 - 48.45 references per article
-Total predicted references:      48221 - 48.22 references per article
+Total expected references: 	 48449 - 48.45 references per article
+Total predicted references: 	 48947 - 48.95 references per article
 
-Total expected citation contexts:        69755 - 69.75 citation contexts per article
-Total predicted citation contexts:       73164 - 73.16 citation contexts per article
+Total expected citation contexts: 	 69755 - 69.75 citation contexts per article
+Total predicted citation contexts: 	 71911 - 71.91 citation contexts per article
 
-Total correct predicted citation contexts:       56709 - 56.71 citation contexts per article
-Total wrong predicted citation contexts:         16455 (wrong callout matching, callout missing in NLM, or matching with a bib. ref. not aligned with a bib.ref. in NLM)
+Total correct predicted citation contexts: 	 55403 - 55.4 citation contexts per article
+Total wrong predicted citation contexts: 	 16508 (wrong callout matching, callout missing in NLM, or matching with a bib. ref. not aligned with a bib.ref. in NLM)
 
-Precision citation contexts:     77.51
-Recall citation contexts:        81.3
-fscore citation contexts:        79.36
+Precision citation contexts: 	 77.04
+Recall citation contexts: 	 79.43
+fscore citation contexts: 	 78.22
 ```
 
 ## Fulltext structures
@@ -253,47 +257,48 @@ Evaluation on 1000 random PDF files out of 998 PDF (ratio 1.0).
 
 **Field-level results**
 
-| label                       | precision | recall    | f1        | support |
-|-----------------------------|-----------|-----------|-----------|---------|
-| availability_stmt           | 54        | 51.99     | 52.98     | 779     |
-| figure_title                | 0.2       | 0.1       | 0.13      | 8943    |
-| funding_stmt                | 5.47      | 30.72     | 9.28      | 1507    |
-| reference_citation          | 87.96     | 94.35     | 91.04     | 69741   |
-| reference_figure            | 74.18     | 85.72     | 79.53     | 11010   |
-| reference_table             | 70.28     | 94.3      | 80.54     | 5159    |
-| section_title               | 72.63     | 66.19     | 69.26     | 17540   |
-| table_title                 | 0         | 0         | 0         | 6092    |
-|                             |           |           |           |         |
-| **all fields (micro avg.)** | **74.06** | **76.67** | **75.34** | 120771  |
-| all fields (macro avg.)     | 45.59     | 52.92     | 47.85     | 120771  |
+| label                       | precision | recall    | f1       | support |
+|-----------------------------|-----------|-----------|----------|---------|
+| availability_stmt           | 51.01     | 48.78     | 49.87    | 779     |
+| figure_title                | 0.22      | 0.11      | 0.15     | 8943    |
+| funding_stmt                | 6.05      | 30.33     | 10.08    | 1507    |
+| reference_citation          | 87.92     | 94.08     | 90.9     | 69741   |
+| reference_figure            | 74.19     | 85.77     | 79.56    | 11010   |
+| reference_table             | 70.23     | 94.28     | 80.5     | 5159    |
+| section_title               | 72.65     | 66.18     | 69.27    | 17540   |
+| table_title                 | 0.12      | 0.02      | 0.03     | 6092    |
+|                             |           |           |          |         |
+| **all fields (micro avg.)** | **74.55** | **76.49** | **75.5** | 120771  |
+| all fields (macro avg.)     | 45.3      | 52.44     | 47.54    | 120771  |
 
 #### Soft Matching (ignoring punctuation, case and space characters mismatches)
 
 **Field-level results**
 
-| label                       | precision | recall   | f1        | support |
-|-----------------------------|-----------|----------|-----------|---------|
-| availability_stmt           | 79.73     | 76.77    | 78.22     | 779     |
-| figure_title                | 90.96     | 45.79    | 60.91     | 8943    |
-| funding_stmt                | 6.99      | 39.28    | 11.87     | 1507    |
-| reference_citation          | 87.96     | 94.36    | 91.05     | 69741   |
-| reference_figure            | 74.42     | 86       | 79.8      | 11010   |
-| reference_table             | 70.44     | 94.51    | 80.72     | 5159    |
-| section_title               | 78.4      | 71.45    | 74.76     | 17540   |
-| table_title                 | 53.33     | 7.5      | 13.15     | 6092    |
-|                             |           |          |           |         |
-| **all fields (micro avg.)** | **78.73** | **81.5** | **80.09** | 120771  |
-| all fields (macro avg.)     | 67.78     | 64.46    | 61.31     | 120771  |
+| label                       | precision | recall    | f1        | support |
+|-----------------------------|-----------|-----------|-----------|---------|
+| availability_stmt           | 80.81     | 77.28     | 79        | 779     |
+| figure_title                | 90.88     | 45.78     | 60.89     | 8943    |
+| funding_stmt                | 7.68      | 38.49     | 12.8      | 1507    |
+| reference_citation          | 87.93     | 94.08     | 90.9      | 69741   |
+| reference_figure            | 74.43     | 86.05     | 79.82     | 11010   |
+| reference_table             | 70.39     | 94.5      | 80.68     | 5159    |
+| section_title               | 78.43     | 71.44     | 74.77     | 17540   |
+| table_title                 | 53.5      | 7.52      | 13.18     | 6092    |
+|                             |           |           |           |         |
+| **all fields (micro avg.)** | **79.27** | **81.33** | **80.29** | 120771  |
+| all fields (macro avg.)     | 68        | 64.39     | 61.51     | 120771  |
 
 **Document-level ratio results**
 
-| label                       | precision | recall    | f1       | support |
-|-----------------------------|-----------|-----------|----------|---------|
-| availability_stmt           | 100       | 96.28     | 98.1     | 779     |
-|                             |           |           |          |         |
-| **all fields (micro avg.)** | **100**   | **96.28** | **98.1** | 779     |
-| all fields (macro avg.)     | 100       | 96.28     | 98.1     | 779     |
+| label                       | precision | recall    | f1        | support |
+|-----------------------------|-----------|-----------|-----------|---------|
+| availability_stmt           | 100       | 95.64     | 97.77     | 779     |
+|                             |           |           |           |         |
+| **all fields (micro avg.)** | **100**   | **95.64** | **97.77** | 779     |
+| all fields (macro avg.)     | 100       | 95.64     | 97.77     | 779     |
 
-Evaluation metrics produced in 795.257 seconds
+Evaluation metrics produced in 770.034 seconds
+
 
 

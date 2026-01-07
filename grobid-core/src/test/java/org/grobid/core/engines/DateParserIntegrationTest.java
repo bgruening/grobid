@@ -21,13 +21,7 @@ public class DateParserIntegrationTest {
 
     @BeforeClass
     public static void setInitialContext() throws Exception {
-//        MockContext.setInitialContext();
         TestEngineUtils.initGrobidForceWapiti();
-    }
-
-    @AfterClass
-    public static void destroyInitialContext() throws Exception {
-//        MockContext.destroyInitialContext();
     }
 
     @Before

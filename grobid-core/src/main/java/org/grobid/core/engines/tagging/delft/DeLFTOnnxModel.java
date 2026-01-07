@@ -95,7 +95,6 @@ public class DeLFTOnnxModel implements Closeable {
      * @return Annotation result
      */
     public AnnotationResult annotate(String text) throws OrtException {
-        // Tokenize
         List<LayoutToken> tokens = preprocessor.tokenize(text);
         String[] words = new String[tokens.size()];
         for (int i = 0; i < tokens.size(); i++) {

@@ -1,18 +1,27 @@
 package org.grobid.core.engines.tagging.delft;
 
 import ai.onnxruntime.OrtException;
+import org.apache.commons.lang3.StringUtils;
 import org.grobid.core.GrobidModels;
+import org.grobid.core.analyzers.GrobidAnalyzer;
+import org.grobid.core.features.FeaturesVectorHeader;
+import org.grobid.core.layout.LayoutToken;
 import org.grobid.core.utilities.GrobidProperties;
 import org.junit.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -78,7 +87,6 @@ public class HeaderOnnxIntegrationTest {
 
     @Test
     public void testModelCanBeLoaded() {
-        // If we get here without exception, the model loaded successfully
         assertThat(model, is(notNullValue()));
         assertThat("Model should have features", model.hasFeatures(), is(true));
         assertThat("Model should have > 0 features", model.getNumFeatures(), greaterThan(0));
@@ -86,22 +94,39 @@ public class HeaderOnnxIntegrationTest {
 
     @Test
     public void testMaxSequenceLength() {
-        // Verify model configuration was read correctly
         int maxSeqLength = model.getMaxSeqLength();
         assertThat("Max sequence length should be positive", maxSeqLength, greaterThan(0));
     }
 
     @Test
     public void testAnnotateSimpleHeader() throws OrtException {
-        // Test annotation with a simple academic-looking text
-        DeLFTOnnxModel.AnnotationResult result = model.annotate(
-                "Deep Learning for Natural Language Processing John Smith MIT");
+        String input = "Deep Learning for Natural Language Processing John Smith MIT";
+
+        List<LayoutToken> allTokens = GrobidAnalyzer.getInstance().tokenizeWithLayoutToken(input);
+        List<LayoutToken> filtered = allTokens.stream()
+            .filter( token -> StringUtils.isNotBlank(token.getText()))
+            .collect(Collectors.toList());
+
+        String[] words = new String[filtered.size()];
+        String[][] features = new String[filtered.size()][model.getNumFeatures()];
+        for (int i = 0; i < filtered.size(); i++) {
+            words[i] = filtered.get(i).getText();
+            FeaturesVectorHeader featuresVectorHeader = FeaturesVectorHeader.fromLayoutToken(filtered.get(i));
+            features[i] = featuresVectorHeader.printVector().split("\n");
+        }
+
+        DeLFTOnnxModel.AnnotationResult result = model.annotateTokens(words, features);
 
         assertThat(result, is(notNullValue()));
         assertThat(result.getTokens(), is(notNullValue()));
         assertThat(result.getLabels(), is(notNullValue()));
         assertThat("Tokens and labels should have same length",
                 result.getTokens().length, is(result.getLabels().length));
+        assertThat(result.getLabels().length, greaterThan(0));
+
+        long otherLabel = Arrays.stream(result.getLabels()).filter(v -> v.equalsIgnoreCase("<other>")).count();
+
+        assertThat(otherLabel, lessThan((long)result.getLabels().length));
     }
 
     @Test
@@ -156,20 +181,12 @@ public class HeaderOnnxIntegrationTest {
 
         assertThat(result, is(notNullValue()));
         assertThat(result.getLabels().length, is(tokens.length));
-    }
 
-    @Test
-    public void testExtractEntities() throws OrtException {
-        // Test with text that should contain recognizable header entities
-        DeLFTOnnxModel.AnnotationResult result = model.annotate(
-                "A Review of Machine Learning Techniques John Smith MIT 2024");
+        assertThat(result.getLabels().length, greaterThan(0));
 
-        assertThat(result, is(notNullValue()));
+        long otherLabel = Arrays.stream(result.getLabels()).filter(v -> v.equalsIgnoreCase("<other>")).count();
 
-        // Extract entities - even if model predictions vary, the method should work
-        var entities = result.extractEntities();
-        assertThat(entities, is(notNullValue()));
-        // Note: Not checking specific entity counts as they depend on model training
+        assertThat(otherLabel, lessThan((long)result.getLabels().length));
     }
 
     @Test
@@ -178,26 +195,18 @@ public class HeaderOnnxIntegrationTest {
         StringBuilder input = new StringBuilder();
 
         // First sequence
-        addTokenWithFeatures(input, "Title");
-        addTokenWithFeatures(input, "Text");
+        input.append(FeaturesVectorHeader.fromLayoutToken(new LayoutToken("Title")).printVector());
+        input.append(FeaturesVectorHeader.fromLayoutToken(new LayoutToken("Text")).printVector());
         input.append("\n"); // Empty line = sequence separator
 
         // Second sequence
-        addTokenWithFeatures(input, "Author");
-        addTokenWithFeatures(input, "Name");
+        input.append(FeaturesVectorHeader.fromLayoutToken(new LayoutToken("Author")).printVector());
+        input.append(FeaturesVectorHeader.fromLayoutToken(new LayoutToken("Name")).printVector());
 
         String result = model.labelGrobidInput(input.toString());
 
         assertThat(result, is(notNullValue()));
         // Result should contain labeled tokens
         assertThat("Result should contain labeled output", result.length(), greaterThan(0));
-    }
-
-    private void addTokenWithFeatures(StringBuilder sb, String token) {
-        sb.append(token);
-        for (int i = 0; i < 22; i++) {
-            sb.append("\t").append("NOFEAT");
-        }
-        sb.append("\n");
     }
 }

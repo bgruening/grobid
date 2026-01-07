@@ -223,7 +223,8 @@ subprojects {
     tasks.withType(Test).configureEach {
         // Needed by some native libs (e.g. onnxruntime) under Java 17+ / 21 when
         // accessing direct buffer internals.
-        jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
+        jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED',
+                '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED' // Required for LMDB
     }
 }
 

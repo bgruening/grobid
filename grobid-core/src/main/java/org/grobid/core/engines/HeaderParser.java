@@ -340,7 +340,10 @@ public class HeaderParser extends AbstractParser {
 
                 // copyrights/license identification
                 if (StringUtils.isNotBlank(resHeader.getCopyright())) {
-                    if (GrobidProperties.getGrobidEngineName("copyright").equals("delft")) {
+                    if (
+                        GrobidProperties.getGrobidEngineName("copyright").equals("delft")
+                        || GrobidProperties.getGrobidEngineName("copyright").equals("onnx")
+                    ){
                         CopyrightsLicense copyrightsLicense = LicenseClassifier.getInstance().classify(resHeader.getCopyright());
                         if (copyrightsLicense != null) 
                             resHeader.setCopyrightsLicense(copyrightsLicense);

@@ -77,7 +77,7 @@ public class LicenseClassifier {
         if (CollectionUtils.isEmpty(texts))
             return null;
 
-        LOGGER.info("classify: " + texts.size());
+        LOGGER.debug("classify: " + texts.size());
 
         String copyrightOwnerAsJson = this.classifierCopyrightsOwner.classify(texts);
         String licencesAsJson = this.classifierLicense.classify(texts);

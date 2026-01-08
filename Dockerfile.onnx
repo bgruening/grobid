@@ -72,7 +72,7 @@ RUN unzip -o /opt/grobid-source/grobid-home/build/distributions/grobid-home-*.zi
 
 # Copy preloaded embeddings to final location
 RUN mkdir -p /opt/grobid/data/db && \
-    cp -r /data/db/* /opt/grobid/data/db/ || true
+    cp -r /opt/grobid-source/data/db/* /opt/grobid/data/db/
 
 # -------------------
 # build runtime image

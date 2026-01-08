@@ -50,7 +50,7 @@ jobs:
           image: lfoppiano/grobid
           registry: docker.io
           pushImage: true
-          tags: latest-onnx, ${{ github.event.inputs.custom_tag}}
+          tags: latest-onnx, ${{ github.event.inputs.custom_tag || github.sha }}
           dockerfile: Dockerfile.onnx
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
@@ -64,7 +64,7 @@ jobs:
           echo "- **Type:** ONNX/Wapiti only (lightweight, no Python/DeLFT)" >> $GITHUB_STEP_SUMMARY
           echo "- **Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "  - \`latest-onnx\`" >> $GITHUB_STEP_SUMMARY
-          echo "  - \`${{ github.event.inputs.custom_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - \`${{ github.event.inputs.custom_tag || github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Digest:** \`${{ steps.docker_build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Features:**" >> $GITHUB_STEP_SUMMARY
@@ -74,6 +74,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Usage:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull lfoppiano/grobid:${{ github.event.inputs.custom_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "docker run -t --rm --init -p 8070:8070 -p 8071:8071 lfoppiano/grobid:${{ github.event.inputs.custom_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull lfoppiano/grobid:latest-onnx" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -t --rm --init -p 8070:8070 -p 8071:8071 lfoppiano/grobid:latest-onnx" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

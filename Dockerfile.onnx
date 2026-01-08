@@ -59,7 +59,7 @@ RUN ./gradlew clean assemble --no-daemon --info --stacktrace
 
 # Preload embeddings in raw float32 format for ONNX inference
 # Using standalone script that doesn't require DeLFT
-RUN pip3 install --no-cache-dir lmdb requests
+RUN pip3 install --no-cache-dir --break-system-packages lmdb requests
 COPY grobid-home/scripts/preload_embeddings_standalone.py .
 COPY grobid-home/config/resources-registry.json .
 RUN python3 preload_embeddings_standalone.py --registry ./resources-registry.json

@@ -1,6 +1,6 @@
 ## Docker GROBID image using ONNX models and/or Wapiti CRF models
 ## This is a lightweight image without Python/TensorFlow/JEP dependencies
-## Currently uses CPU-only ONNX Runtime (GPU support can be added by using onnxruntime_gpu dependency)
+## Uses ONNX Runtime with GPU support (automatically falls back to CPU if no GPU available)
 
 ## See https://grobid.readthedocs.io/en/latest/Grobid-docker/
 

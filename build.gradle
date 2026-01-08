@@ -267,7 +267,13 @@ project("grobid-core") {
         implementation group: 'org.jruby', name: 'jruby-complete', version: '9.4.12.1'
 
         // ONNX Runtime for model inference
-        implementation 'com.microsoft.onnxruntime:onnxruntime:1.23.2'
+        // GPU version (onnxruntime_gpu) only supports Linux with NVIDIA CUDA
+        // CPU version (onnxruntime) supports all platforms including macOS ARM64
+        if (System.getProperty("os.name").toLowerCase().contains("linux")) {
+            implementation 'com.microsoft.onnxruntime:onnxruntime_gpu:1.23.2'
+        } else {
+            implementation 'com.microsoft.onnxruntime:onnxruntime:1.23.2'
+        }
 
         // LMDB for word embeddings lookup (0.9.0+ includes Apple Silicon native libs)
         implementation 'org.lmdbjava:lmdbjava:0.9.2'

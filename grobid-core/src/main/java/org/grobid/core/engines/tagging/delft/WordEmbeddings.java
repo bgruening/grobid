@@ -51,9 +51,10 @@ public class WordEmbeddings implements Closeable {
         }
 
         try {
-            // Open LMDB environment
+            // Open LMDB environment with increased reader slots for high concurrency
             this.env = Env.create()
                     .setMapSize(10_000_000_000L) // 10GB max
+                    .setMaxReaders(512) // Support high concurrency (default is 126)
                     .setMaxDbs(1)
                     .open(dbPath.toFile());
 
@@ -132,15 +133,57 @@ public class WordEmbeddings implements Closeable {
     /**
      * Look up embeddings for a sequence of words.
      * 
+     * Uses a single LMDB read transaction for all lookups to avoid
+     * exhausting reader slots under high concurrency.
+     * 
      * @param words Array of words
      * @return 2D array [seq_len][embedding_size]
+     * @throws RuntimeException if LMDB database access fails
      */
     public float[][] getEmbeddings(String[] words) {
-        float[][] embeddings = new float[words.length][embeddingSize];
-        for (int i = 0; i < words.length; i++) {
-            embeddings[i] = getEmbedding(words[i]);
+        float[][] result = new float[words.length][embeddingSize];
+
+        try (Txn<ByteBuffer> txn = env.txnRead()) {
+            for (int i = 0; i < words.length; i++) {
+                result[i] = getEmbeddingWithTxn(words[i], txn);
+            }
+        } catch (LmdbException e) {
+            throw new RuntimeException(
+                    "LMDB database error during batch embedding lookup: " + e.getMessage(), e);
         }
-        return embeddings;
+
+        return result;
+    }
+
+    /**
+     * Look up embedding for a word using an existing transaction.
+     * 
+     * @param word The word to look up
+     * @param txn  Active read transaction
+     * @return Embedding vector, or zero vector if not found
+     */
+    private float[] getEmbeddingWithTxn(String word, Txn<ByteBuffer> txn) {
+        // Normalize digits to "0" like Python's _normalize_num
+        String normalizedWord = normalizeNum(word);
+
+        byte[] keyBytes = normalizedWord.getBytes(StandardCharsets.UTF_8);
+        ByteBuffer keyBuffer = ByteBuffer.allocateDirect(keyBytes.length);
+        keyBuffer.put(keyBytes).flip();
+
+        ByteBuffer valueBuffer = dbi.get(txn, keyBuffer);
+
+        if (valueBuffer == null) {
+            // Word not found, return zero vector
+            return zeroVector.clone();
+        }
+
+        // Parse float array from raw bytes (little-endian float32)
+        valueBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        float[] embedding = new float[embeddingSize];
+        for (int i = 0; i < embeddingSize; i++) {
+            embedding[i] = valueBuffer.getFloat();
+        }
+        return embedding;
     }
 
     /**

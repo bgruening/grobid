@@ -70,9 +70,9 @@ RUN unzip -o /opt/grobid-source/grobid-service/build/distributions/grobid-servic
 RUN unzip -o /opt/grobid-source/grobid-home/build/distributions/grobid-home-*.zip && \
     chmod -R 755 /opt/grobid/grobid-home/pdfalto
 
-# Copy preloaded embeddings to final location
+# Move preloaded embeddings to final location
 RUN mkdir -p /opt/grobid/data/db && \
-    cp -r /opt/grobid-source/data/db/* /opt/grobid/data/db/
+    mv /opt/grobid-source/data/db/* /opt/grobid/data/db/
 
 # -------------------
 # build runtime image
@@ -93,7 +93,6 @@ RUN apt-get update && \
 WORKDIR /opt/grobid
 
 COPY --from=builder /opt/grobid .
-COPY --from=builder /opt/grobid/data/db ./data/db
 
 ENV JAVA_OPTS=-Xmx4g
 

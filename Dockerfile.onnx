@@ -1,6 +1,6 @@
 ## Docker GROBID image using ONNX models and/or Wapiti CRF models
-## This is a lightweight image without Python/TensorFlow/JEP dependencies
-## Uses ONNX Runtime with GPU support (automatically falls back to CPU if no GPU available)
+## This is a lightweight image without Python/TensorFlow/DeLFT/JEP dependencies
+## Uses ONNX Runtime (CPU only)
 
 ## See https://grobid.readthedocs.io/en/latest/Grobid-docker/
 
@@ -51,17 +51,18 @@ RUN rm -rf grobid-home/lib/win-*
 RUN rm -rf grobid-home/lib/mac-64
 RUN rm -rf grobid-home/lib/lin-64/jep
 
-# Use ONNX configuration (TODO)
-# RUN rm grobid-home/config/grobid.yaml && \
-#     mv grobid-home/config/grobid-onnx.yaml grobid-home/config/grobid.yaml
+# Use ONNX configuration (no DeLFT models)
+RUN rm grobid-home/config/grobid.yaml && \
+    mv grobid-home/config/grobid-onnx.yaml grobid-home/config/grobid.yaml
 
 RUN ./gradlew clean assemble --no-daemon --info --stacktrace
 
 # Preload embeddings in raw float32 format for ONNX inference
+# Using standalone script that doesn't require DeLFT
 RUN pip3 install --no-cache-dir lmdb requests
-COPY grobid-home/scripts/preload_embeddings.py .
+COPY grobid-home/scripts/preload_embeddings_standalone.py .
 COPY grobid-home/config/resources-registry.json .
-RUN python3 preload_embeddings.py --registry ./resources-registry.json
+RUN python3 preload_embeddings_standalone.py --registry ./resources-registry.json
 
 WORKDIR /opt/grobid
 RUN unzip -o /opt/grobid-source/grobid-service/build/distributions/grobid-service-*.zip && \
@@ -96,6 +97,9 @@ COPY --from=builder /opt/grobid/data/db ./data/db
 
 ENV JAVA_OPTS=-Xmx4g
 
+# JVM options for module access (required for LMDB)
+ENV GROBID_SERVICE_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED"
+
 # Add Tini
 ENV TINI_VERSION=v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
@@ -111,6 +115,6 @@ ARG GROBID_VERSION
 LABEL \
     authors="The contributors" \
     org.label-schema.name="GROBID" \
-    org.label-schema.description="Image with GROBID service (ONNX/Wapiti only)" \
+    org.label-schema.description="Image with GROBID service (ONNX/Wapiti only, no DeLFT)" \
     org.label-schema.url="https://github.com/kermitt2/grobid" \
     org.label-schema.version=${GROBID_VERSION}

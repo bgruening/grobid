@@ -1,5 +1,8 @@
 name: Build and push an ONNX docker image
 
+# This workflow builds the lightweight ONNX/Wapiti-only Docker image
+# (no Python/DeLFT/TensorFlow dependencies)
+
 on:
   workflow_dispatch:
     inputs:
@@ -55,13 +58,19 @@ jobs:
           echo "**Image Details:**" >> $GITHUB_STEP_SUMMARY
           echo "- **Registry:** docker.io" >> $GITHUB_STEP_SUMMARY
           echo "- **Image:** lfoppiano/grobid" >> $GITHUB_STEP_SUMMARY
-          echo "- **Type:** ONNX build" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type:** ONNX/Wapiti only (lightweight, no Python/DeLFT)" >> $GITHUB_STEP_SUMMARY
           echo "- **Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "  - \`latest-onnx\`" >> $GITHUB_STEP_SUMMARY
           echo "  - \`${{ github.event.inputs.custom_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Digest:** \`${{ steps.docker_build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Features:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ONNX Runtime for deep learning models (CPU only)" >> $GITHUB_STEP_SUMMARY
+          echo "- Wapiti CRF for traditional models" >> $GITHUB_STEP_SUMMARY
+          echo "- No Python, TensorFlow, or DeLFT dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Usage:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "docker pull lfoppiano/grobid:${{ github.event.inputs.custom_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -t --rm --init -p 8070:8070 -p 8071:8071 lfoppiano/grobid:${{ github.event.inputs.custom_tag }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

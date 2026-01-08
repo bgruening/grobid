@@ -4,6 +4,9 @@ name: Build and push an ONNX docker image
 # (no Python/DeLFT/TensorFlow dependencies)
 
 on:
+  push:
+    branches:
+      - onnx-docker
   workflow_dispatch:
     inputs:
       custom_tag:

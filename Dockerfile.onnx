@@ -94,11 +94,6 @@ WORKDIR /opt/grobid
 
 COPY --from=builder /opt/grobid .
 
-ENV JAVA_OPTS=-Xmx4g
-
-# JVM options for module access (required for LMDB)
-ENV GROBID_SERVICE_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED"
-
 # Add Tini
 ENV TINI_VERSION=v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
@@ -106,6 +101,9 @@ RUN chmod +x /tini
 ENTRYPOINT ["/tini", "-s", "--"]
 
 WORKDIR /opt/grobid
+
+ENV JAVA_OPTS="-Xmx4g --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED"
+
 
 CMD ["./grobid-service/bin/grobid-service"]
 

@@ -33,7 +33,14 @@ public class ClassifierFactory {
      * @return A GenericClassifier instance
      */
     public static synchronized GenericClassifier getClassifier(String modelName) {
-        return getClassifier(modelName, GrobidProperties.getDelftArchitecture(modelName));
+        GrobidCRFEngine engine = GrobidProperties.getGrobidEngine(modelName);
+        String architecture;
+        if (engine == GrobidCRFEngine.ONNX) {
+            architecture = GrobidProperties.getOnnxArchitecture(modelName);
+        } else {
+            architecture = GrobidProperties.getDelftArchitecture(modelName);
+        }
+        return getClassifier(modelName, architecture);
     }
 
     /**

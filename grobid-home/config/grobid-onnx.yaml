@@ -209,11 +209,15 @@ grobid:
 
     - name: "copyright"
       engine: "onnx"
+      delft:
+        architecture: "gru"
       onnx:
         architecture: "gru"
 
     - name: "license"
       engine: "onnx"
+      delft:
+        architecture: "gru"
       onnx:
         architecture: "gru"
 

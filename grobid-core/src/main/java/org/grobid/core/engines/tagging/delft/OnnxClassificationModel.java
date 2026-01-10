@@ -100,12 +100,21 @@ public class OnnxClassificationModel implements GenericClassifier {
         this.env = OrtEnvironment.getEnvironment();
         OrtSession.SessionOptions options = new OrtSession.SessionOptions();
         options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+
+        // Configure threading for optimal CPU inference performance
+        int numCores = Runtime.getRuntime().availableProcessors();
+        int intraOpThreads = Math.max(1, Math.min(numCores / 2, 4));
+        options.setIntraOpNumThreads(intraOpThreads);
+        options.setInterOpNumThreads(1);
+        options.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL);
+
         this.session = env.createSession(modelDir.resolve("classifier.onnx").toString(), options);
 
         // Load embeddings
         this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);
 
-        LOGGER.info("ONNX classification model {} loaded", modelName);
+        LOGGER.info("ONNX classification model {} loaded (intra-op threads: {}, sequential mode)", modelName,
+                intraOpThreads);
         LOGGER.info("Labels: {}", String.join(", ", labels));
     }
 

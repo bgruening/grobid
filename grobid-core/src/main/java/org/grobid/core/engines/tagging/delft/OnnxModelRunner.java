@@ -33,12 +33,27 @@ public class OnnxModelRunner implements Closeable {
         OrtSession.SessionOptions options = new OrtSession.SessionOptions();
         options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
 
+        // Configure threading for optimal CPU inference performance
+        // intraOpNumThreads: threads for parallel execution within a single operator
+        // (e.g., matrix multiplication)
+        // For sequence labeling models with batch size 1, a moderate value works well
+        int numCores = Runtime.getRuntime().availableProcessors();
+        int intraOpThreads = Math.max(1, Math.min(numCores / 2, 4));
+        options.setIntraOpNumThreads(intraOpThreads);
+
+        // interOpNumThreads: threads for parallel execution of multiple operators
+        // Set to 1 since GROBID manages concurrency at a higher level
+        options.setInterOpNumThreads(1);
+
+        // Use sequential execution mode (vs parallel) since GROBID handles parallelism
+        options.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL);
+
         this.session = env.createSession(modelPath.toString(), options);
 
         // Check if model has features input
         this.hasFeatures = session.getInputNames().contains("features_input");
 
-        LOGGER.info("Loaded ONNX model from {}", modelPath);
+        LOGGER.info("Loaded ONNX model from {} (intra-op threads: {}, sequential mode)", modelPath, intraOpThreads);
         LOGGER.info("Input names: {}", session.getInputNames());
         LOGGER.info("Output names: {}", session.getOutputNames());
     }

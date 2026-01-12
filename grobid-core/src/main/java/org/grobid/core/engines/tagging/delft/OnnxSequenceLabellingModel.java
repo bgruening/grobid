@@ -14,9 +14,9 @@ import java.util.Map;
 /**
  * ONNX Runtime wrapper for running DeLFT encoder models.
  */
-public class OnnxModelRunner implements Closeable {
+public class OnnxSequenceLabellingModel implements Closeable {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(OnnxModelRunner.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OnnxSequenceLabellingModel.class);
 
     private final OrtEnvironment env;
     private final OrtSession session;
@@ -27,19 +27,17 @@ public class OnnxModelRunner implements Closeable {
      * 
      * @param modelPath Path to the .onnx file
      */
-    public OnnxModelRunner(Path modelPath) throws OrtException {
+    public OnnxSequenceLabellingModel(Path modelPath) throws OrtException {
         this.env = OrtEnvironment.getEnvironment();
 
         OrtSession.SessionOptions options = new OrtSession.SessionOptions();
         options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
 
         // Configure threading for optimal CPU inference performance
-        // intraOpNumThreads: threads for parallel execution within a single operator
-        // (e.g., matrix multiplication)
-        // For sequence labeling models with batch size 1, a moderate value works well
-        int numCores = Runtime.getRuntime().availableProcessors();
-        int intraOpThreads = Math.max(1, Math.min(numCores / 2, 4));
-        options.setIntraOpNumThreads(intraOpThreads);
+        // Since GROBID manages concurrency at the worker level (e.g., 10 concurrent
+        // workers),
+        // use single-threaded inference per session to avoid CPU oversubscription
+        options.setIntraOpNumThreads(1);
 
         // interOpNumThreads: threads for parallel execution of multiple operators
         // Set to 1 since GROBID manages concurrency at a higher level
@@ -53,7 +51,7 @@ public class OnnxModelRunner implements Closeable {
         // Check if model has features input
         this.hasFeatures = session.getInputNames().contains("features_input");
 
-        LOGGER.info("Loaded ONNX model from {} (intra-op threads: {}, sequential mode)", modelPath, intraOpThreads);
+        LOGGER.info("Loaded ONNX model from {} (single-threaded, sequential mode)", modelPath);
         LOGGER.info("Input names: {}", session.getInputNames());
         LOGGER.info("Output names: {}", session.getOutputNames());
     }

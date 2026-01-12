@@ -101,10 +101,10 @@ public class OnnxClassificationModel implements GenericClassifier {
         OrtSession.SessionOptions options = new OrtSession.SessionOptions();
         options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
 
-        // Configure threading for optimal CPU inference performance
-        int numCores = Runtime.getRuntime().availableProcessors();
-        int intraOpThreads = Math.max(1, Math.min(numCores / 2, 4));
-        options.setIntraOpNumThreads(intraOpThreads);
+        // Since GROBID manages concurrency at the worker level (e.g., 10 concurrent
+        // workers),
+        // use single-threaded inference per session to avoid CPU oversubscription
+        options.setIntraOpNumThreads(1);
         options.setInterOpNumThreads(1);
         options.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL);
 
@@ -113,8 +113,7 @@ public class OnnxClassificationModel implements GenericClassifier {
         // Load embeddings
         this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);
 
-        LOGGER.info("ONNX classification model {} loaded (intra-op threads: {}, sequential mode)", modelName,
-                intraOpThreads);
+        LOGGER.info("ONNX classification model {} loaded (single-threaded, sequential mode)", modelName);
         LOGGER.info("Labels: {}", String.join(", ", labels));
     }
 

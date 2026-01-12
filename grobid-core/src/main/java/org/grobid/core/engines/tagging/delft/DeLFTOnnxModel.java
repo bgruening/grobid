@@ -27,7 +27,7 @@ public class DeLFTOnnxModel implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeLFTOnnxModel.class);
 
-    private final OnnxModelRunner modelRunner;
+    private final OnnxSequenceLabellingModel modelRunner;
     private final CRFDecoder crfDecoder;
     private final Preprocessor preprocessor;
     private final WordEmbeddings embeddings;
@@ -55,7 +55,7 @@ public class DeLFTOnnxModel implements Closeable {
         LOGGER.info("Loading embeddings from: {}", embeddingsPath);
 
         // Load components
-        this.modelRunner = new OnnxModelRunner(modelDir.resolve("encoder.onnx"));
+        this.modelRunner = new OnnxSequenceLabellingModel(modelDir.resolve("encoder.onnx"));
         this.crfDecoder = CRFDecoder.fromJson(modelDir.resolve("crf_params.json"));
         this.preprocessor = Preprocessor.fromJson(modelDir.resolve("vocab.json"));
         this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);
@@ -79,7 +79,7 @@ public class DeLFTOnnxModel implements Closeable {
         this.maxSeqLength = maxSeqLength;
 
         // Load components
-        this.modelRunner = new OnnxModelRunner(modelDir.resolve("encoder.onnx"));
+        this.modelRunner = new OnnxSequenceLabellingModel(modelDir.resolve("encoder.onnx"));
         this.crfDecoder = CRFDecoder.fromJson(modelDir.resolve("crf_params.json"));
         this.preprocessor = Preprocessor.fromJson(modelDir.resolve("vocab.json"));
         this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);

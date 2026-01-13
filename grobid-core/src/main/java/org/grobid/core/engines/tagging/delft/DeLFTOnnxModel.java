@@ -174,6 +174,117 @@ public class DeLFTOnnxModel implements Closeable {
     }
 
     /**
+     * Annotate multiple token sequences in a single batch inference call.
+     * All sequences are padded to maxSeqLength.
+     * 
+     * @param tokensBatch   Array of token arrays [batchSize][numTokens]
+     * @param featuresBatch Feature values per token
+     *                      [batchSize][numTokens][numFeatures], can be null
+     * @return Array of AnnotationResult, one per input sequence
+     */
+    public AnnotationResult[] annotateTokensBatch(String[][] tokensBatch, String[][][] featuresBatch)
+            throws OrtException {
+        int batchSize = tokensBatch.length;
+
+        if (batchSize == 0) {
+            return new AnnotationResult[0];
+        }
+
+        // Prepare arrays to store actual token counts for each sequence
+        int[] numTokensPerSeq = new int[batchSize];
+
+        // Prepare batch data
+        float[][][] batchEmbs = new float[batchSize][maxSeqLength][embeddings.getEmbeddingSize()];
+        long[][][] batchChars = new long[batchSize][maxSeqLength][];
+        long[][][] batchFeatures = null;
+
+        if (preprocessor.hasFeatures() && featuresBatch != null) {
+            batchFeatures = new long[batchSize][][];
+        }
+
+        for (int b = 0; b < batchSize; b++) {
+            String[] tokens = tokensBatch[b];
+            int numTokens = Math.min(tokens.length, maxSeqLength);
+            numTokensPerSeq[b] = numTokens;
+
+            if (numTokens == 0) {
+                // Initialize with zeros for empty sequences
+                for (int i = 0; i < maxSeqLength; i++) {
+                    batchEmbs[b][i] = new float[embeddings.getEmbeddingSize()];
+                    batchChars[b][i] = new long[preprocessor.getMaxCharLength()];
+                }
+                if (batchFeatures != null) {
+                    batchFeatures[b] = new long[maxSeqLength][preprocessor.getNumFeatures()];
+                }
+                continue;
+            }
+
+            // Truncate to max sequence length
+            String[] words = new String[numTokens];
+            System.arraycopy(tokens, 0, words, 0, numTokens);
+
+            // Get embeddings and pad
+            float[][] wordEmbs = embeddings.getEmbeddings(words);
+            for (int i = 0; i < numTokens; i++) {
+                batchEmbs[b][i] = wordEmbs[i];
+            }
+            for (int i = numTokens; i < maxSeqLength; i++) {
+                batchEmbs[b][i] = new float[embeddings.getEmbeddingSize()];
+            }
+
+            // Get char indices
+            List<LayoutToken> layoutTokens = new ArrayList<>();
+            for (String word : words) {
+                LayoutToken lt = new LayoutToken();
+                lt.setText(word);
+                layoutTokens.add(lt);
+            }
+            batchChars[b] = preprocessor.tokensToCharIndices(layoutTokens, maxSeqLength);
+
+            // Handle features
+            if (batchFeatures != null) {
+                if (featuresBatch != null && featuresBatch[b] != null) {
+                    batchFeatures[b] = preprocessor.tokensToFeatureIndices(featuresBatch[b], maxSeqLength);
+                } else {
+                    batchFeatures[b] = new long[maxSeqLength][preprocessor.getNumFeatures()];
+                }
+            }
+        }
+
+        // Run batch inference
+        float[][][] emissions = modelRunner.runInference(batchEmbs, batchChars, batchFeatures);
+
+        // Decode each sequence
+        AnnotationResult[] results = new AnnotationResult[batchSize];
+        for (int b = 0; b < batchSize; b++) {
+            int numTokens = numTokensPerSeq[b];
+
+            if (numTokens == 0) {
+                results[b] = new AnnotationResult(null, new String[0], new String[0]);
+                continue;
+            }
+
+            // CRF decode
+            boolean[] mask = preprocessor.createMask(numTokens, maxSeqLength);
+            int[] tagIndices = crfDecoder.decode(emissions[b], mask);
+
+            // Convert to tag names (only for actual tokens)
+            String[] tags = new String[numTokens];
+            String[] words = new String[numTokens];
+            System.arraycopy(tokensBatch[b], 0, words, 0, numTokens);
+
+            for (int i = 0; i < numTokens; i++) {
+                tags[i] = delft2grobidLabel(
+                        preprocessor.getTagIndex().getOrDefault(tagIndices[i], TaggingLabels.IOB_OTHER_LABEL));
+            }
+
+            results[b] = new AnnotationResult(String.join(" ", words), words, tags);
+        }
+
+        return results;
+    }
+
+    /**
      * Check if this model requires features.
      */
     public boolean hasFeatures() {
@@ -327,18 +438,48 @@ public class DeLFTOnnxModel implements Closeable {
             return labelTokensWithFeatures(tokensWithFeatures);
         }
 
-        // Chunk the sequence and process each chunk
-        List<String> allLabels = new ArrayList<>();
+        // Collect all chunks for batch processing
+        List<List<String[]>> chunks = new ArrayList<>();
         int offset = 0;
 
         while (offset < totalTokens) {
             int chunkEnd = Math.min(offset + maxSeqLength, totalTokens);
-            List<String[]> chunk = tokensWithFeatures.subList(offset, chunkEnd);
-
-            List<String> chunkLabels = labelTokensWithFeatures(chunk);
-            allLabels.addAll(chunkLabels);
-
+            chunks.add(new ArrayList<>(tokensWithFeatures.subList(offset, chunkEnd)));
             offset = chunkEnd;
+        }
+
+        // Convert chunks to batch arrays
+        int batchSize = chunks.size();
+        String[][] tokensBatch = new String[batchSize][];
+        String[][][] featuresBatch = new String[batchSize][][];
+
+        for (int i = 0; i < batchSize; i++) {
+            List<String[]> chunk = chunks.get(i);
+            tokensBatch[i] = new String[chunk.size()];
+            featuresBatch[i] = null;
+
+            for (int j = 0; j < chunk.size(); j++) {
+                String[] parts = chunk.get(j);
+                tokensBatch[i][j] = parts[0];
+
+                if (parts.length > 1) {
+                    if (featuresBatch[i] == null) {
+                        featuresBatch[i] = new String[chunk.size()][parts.length - 1];
+                    }
+                    for (int k = 1; k < parts.length; k++) {
+                        featuresBatch[i][j][k - 1] = parts[k];
+                    }
+                }
+            }
+        }
+
+        // Run batch inference
+        AnnotationResult[] results = annotateTokensBatch(tokensBatch, featuresBatch);
+
+        // Combine results
+        List<String> allLabels = new ArrayList<>();
+        for (AnnotationResult result : results) {
+            allLabels.addAll(Arrays.asList(result.getLabels()));
         }
 
         return allLabels;

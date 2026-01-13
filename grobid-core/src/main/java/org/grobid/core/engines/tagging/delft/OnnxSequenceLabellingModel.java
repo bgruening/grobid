@@ -37,11 +37,11 @@ public class OnnxSequenceLabellingModel implements Closeable {
         // Since GROBID manages concurrency at the worker level (e.g., 10 concurrent
         // workers),
         // use single-threaded inference per session to avoid CPU oversubscription
-        options.setIntraOpNumThreads(1);
+        options.setIntraOpNumThreads(0);
 
         // interOpNumThreads: threads for parallel execution of multiple operators
         // Set to 1 since GROBID manages concurrency at a higher level
-        options.setInterOpNumThreads(1);
+        options.setInterOpNumThreads(0);
 
         // Use sequential execution mode (vs parallel) since GROBID handles parallelism
         options.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL);

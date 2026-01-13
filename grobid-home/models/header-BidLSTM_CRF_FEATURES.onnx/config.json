@@ -1,5 +1,5 @@
 {
-  "modelName": "header-BidLSTM_CRF_FEATURES",
+  "modelName": "grobid-header-BidLSTM_CRF_FEATURES",
   "architecture": "BidLSTM_CRF_FEATURES",
   "wordEmbeddingSize": 300,
   "charEmbeddingSize": 25,

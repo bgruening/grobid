@@ -155,6 +155,17 @@ public class FullTextParser extends AbstractParser {
         try {
             // general segmentation
             Document doc = parsers.getSegmentationParser(flavor).processing(documentSource, config);
+
+            // Apply typed areas filtering if configured (takes precedence over legacy ignoreAreas)
+            if (config.getTypedAreas() != null && !config.getTypedAreas().isEmpty()) {
+                doc.filterLayoutTokensByTypedAreas(config.getTypedAreas());
+                // Apply specialized processing for figures and tables
+                processTypedAreas(doc);
+            } else if (config.getIgnoreAreas() != null && !config.getIgnoreAreas().isEmpty()) {
+                // Legacy support for old ignoreAreas
+                doc.filterLayoutTokensByIgnoreAreas(config.getIgnoreAreas());
+            }
+
             SortedSet<DocumentPiece> documentBodyParts = doc.getDocumentPart(SegmentationLabels.BODY);
 
             // header processing
@@ -723,6 +734,16 @@ public class FullTextParser extends AbstractParser {
         try {
             // general segmentation
             Document doc = parsers.getSegmentationParser().processing(documentSource, config);
+
+            // Apply typed areas filtering if configured (takes precedence over legacy ignoreAreas)
+            if (config.getTypedAreas() != null && !config.getTypedAreas().isEmpty()) {
+                doc.filterLayoutTokensByTypedAreas(config.getTypedAreas());
+                // Apply specialized processing for figures and tables
+                processTypedAreas(doc);
+            } else if (config.getIgnoreAreas() != null && !config.getIgnoreAreas().isEmpty()) {
+                // Legacy support for old ignoreAreas
+                doc.filterLayoutTokensByIgnoreAreas(config.getIgnoreAreas());
+            }
 
             // header processing
             BiblioItem resHeader = new BiblioItem();
@@ -3541,6 +3562,60 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
             labeledTokenSequences.add(currentTokenization);
 
         return labeledTokenSequences;
+    }
+
+    /**
+     * Process typed areas (figures, tables) using specialized models.
+     * This method applies the appropriate figure and table parsers to pre-identified areas.
+     */
+    protected void processTypedAreas(Document doc) {
+        if (doc == null) {
+            return;
+        }
+
+        LOGGER.debug("Processing typed areas: {} figures, {} tables",
+                    doc.getFigureAreas().size(), doc.getTableAreas().size());
+
+        // Process figure areas
+        if (!doc.getFigureAreas().isEmpty() && !doc.getFigureTokens().isEmpty()) {
+            try {
+                Figure processedFigure = parsers.getFigureParser()
+                    .processing(doc.getFigureTokens(), null);
+
+                if (processedFigure != null) {
+                    // Add processed figure to document's annex figures
+                    if (doc.getAnnexFigures() == null) {
+                        doc.setAnnexFigures(new ArrayList<>());
+                    }
+                    doc.getAnnexFigures().add(processedFigure);
+                    LOGGER.debug("Processed figure from typed areas");
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Error processing figure areas: " + e.getMessage(), e);
+            }
+        }
+
+        // Process table areas
+        if (!doc.getTableAreas().isEmpty() && !doc.getTableTokens().isEmpty()) {
+            try {
+                List<Table> processedTables = parsers.getTableParser()
+                    .processing(doc.getTableTokens(), null);
+
+                if (processedTables != null && !processedTables.isEmpty()) {
+                    // Add processed tables to document's annex tables
+                    if (doc.getAnnexTables() == null) {
+                        doc.setAnnexTables(new ArrayList<>());
+                    }
+                    doc.getAnnexTables().addAll(processedTables);
+                    LOGGER.debug("Processed {} tables from typed areas", processedTables.size());
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Error processing table areas: " + e.getMessage(), e);
+            }
+        }
+
+        // Note: ignored areas are intentionally discarded and no further processing is performed
+        LOGGER.debug("Typed area processing completed");
     }
 
     @Override

@@ -17,6 +17,8 @@
 
 * [Use GROBID as a service](Grobid-service.md)
 
+* [Typed Areas API Documentation](Typed-Areas-API.md)
+
 * [Build a GROBID development environment](Install-Grobid.md)
 
 * [Manage GROBID with containers (Docker)](Grobid-docker.md)

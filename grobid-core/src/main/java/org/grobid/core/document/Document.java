@@ -27,6 +27,8 @@ import org.grobid.core.layout.BoundingBox;
 import org.grobid.core.layout.Cluster;
 import org.grobid.core.layout.GraphicObject;
 import org.grobid.core.layout.GraphicObjectType;
+import org.grobid.core.layout.IgnoreArea;
+import org.grobid.core.layout.AreaType;
 import org.grobid.core.layout.LayoutToken;
 import org.grobid.core.layout.PDFAnnotation;
 import org.grobid.core.layout.Page;
@@ -155,6 +157,16 @@ public class Document implements Serializable {
     protected transient List<Table> annexTables;
     protected transient List<Equation> equations;
     protected transient List<Equation> annexEquations;
+
+    // typed areas for specialized processing
+    protected transient List<IgnoreArea> figureAreas = new ArrayList<>();
+    protected transient List<IgnoreArea> tableAreas = new ArrayList<>();
+    protected transient List<IgnoreArea> ignoredAreas = new ArrayList<>();
+
+    // tokens extracted from typed areas for specialized processing
+    protected transient List<LayoutToken> figureTokens = new ArrayList<>();
+    protected transient List<LayoutToken> tableTokens = new ArrayList<>();
+    protected transient List<LayoutToken> ignoredTokens = new ArrayList<>();
 
     // the analyzer/tokenizer used for processing this document
     protected transient Analyzer analyzer = GrobidAnalyzer.getInstance();
@@ -1702,5 +1714,159 @@ public class Document implements Serializable {
 
     public void setAnnexFigures(List<Figure> annexFigures) {
         this.annexFigures = annexFigures;
+    }
+
+    // Typed area getters and setters
+    public List<IgnoreArea> getFigureAreas() {
+        return figureAreas;
+    }
+
+    public void setFigureAreas(List<IgnoreArea> figureAreas) {
+        this.figureAreas = figureAreas != null ? figureAreas : new ArrayList<>();
+    }
+
+    public List<IgnoreArea> getTableAreas() {
+        return tableAreas;
+    }
+
+    public void setTableAreas(List<IgnoreArea> tableAreas) {
+        this.tableAreas = tableAreas != null ? tableAreas : new ArrayList<>();
+    }
+
+    public List<IgnoreArea> getIgnoredAreas() {
+        return ignoredAreas;
+    }
+
+    public void setIgnoredAreas(List<IgnoreArea> ignoredAreas) {
+        this.ignoredAreas = ignoredAreas != null ? ignoredAreas : new ArrayList<>();
+    }
+
+    // Token getters and setters for typed areas
+    public List<LayoutToken> getFigureTokens() {
+        return figureTokens;
+    }
+
+    public void setFigureTokens(List<LayoutToken> figureTokens) {
+        this.figureTokens = figureTokens != null ? figureTokens : new ArrayList<>();
+    }
+
+    public List<LayoutToken> getTableTokens() {
+        return tableTokens;
+    }
+
+    public void setTableTokens(List<LayoutToken> tableTokens) {
+        this.tableTokens = tableTokens != null ? tableTokens : new ArrayList<>();
+    }
+
+    public List<LayoutToken> getIgnoredTokens() {
+        return ignoredTokens;
+    }
+
+    public void setIgnoredTokens(List<LayoutToken> ignoredTokens) {
+        this.ignoredTokens = ignoredTokens != null ? ignoredTokens : new ArrayList<>();
+    }
+
+    /**
+     * Filters out layout tokens that fall within the specified ignore areas and categorizes them by type.
+     * This replaces the old filterLayoutTokensByIgnoreAreas method to support typed areas.
+     *
+     * @param typedAreas list of typed areas for specialized processing
+     */
+    public void filterLayoutTokensByTypedAreas(List<IgnoreArea> typedAreas) {
+        if (typedAreas == null || typedAreas.isEmpty() || tokenizations == null || tokenizations.isEmpty()) {
+            return;
+        }
+
+        LOGGER.debug("Processing {} typed areas", typedAreas.size());
+
+        // Clear previous token lists
+        figureTokens.clear();
+        tableTokens.clear();
+        ignoredTokens.clear();
+        figureAreas.clear();
+        tableAreas.clear();
+        ignoredAreas.clear();
+
+        // Categorize areas by type
+        for (IgnoreArea area : typedAreas) {
+            if (area.getType() == null) {
+                continue;
+            }
+
+            switch (area.getType()) {
+                case FIGURE:
+                    figureAreas.add(area);
+                    break;
+                case TABLE:
+                    tableAreas.add(area);
+                    break;
+                case IGNORE:
+                    ignoredAreas.add(area);
+                    break;
+            }
+        }
+
+        List<LayoutToken> filteredTokens = new ArrayList<>();
+        int figureTokenCount = 0;
+        int tableTokenCount = 0;
+        int ignoredTokenCount = 0;
+
+        for (LayoutToken token : tokenizations) {
+            boolean tokenProcessed = false;
+
+            // Check if token intersects with any typed area
+            for (IgnoreArea area : typedAreas) {
+                if (area.contains(token)) {
+                    switch (area.getType()) {
+                        case FIGURE:
+                            figureTokens.add(token);
+                            figureTokenCount++;
+                            tokenProcessed = true;
+                            break;
+                        case TABLE:
+                            tableTokens.add(token);
+                            tableTokenCount++;
+                            tokenProcessed = true;
+                            break;
+                        case IGNORE:
+                            ignoredTokens.add(token);
+                            ignoredTokenCount++;
+                            tokenProcessed = true;
+                            break;
+                    }
+                    if (tokenProcessed) {
+                        break;
+                    }
+                }
+            }
+
+            // Keep token only if it wasn't processed by any typed area
+            if (!tokenProcessed) {
+                filteredTokens.add(token);
+            }
+        }
+
+        tokenizations = filteredTokens;
+        LOGGER.debug("Processed typed areas: {} figure tokens, {} table tokens, {} ignored tokens, {} main tokens remaining",
+                    figureTokenCount, tableTokenCount, ignoredTokenCount, tokenizations.size());
+    }
+
+    /**
+     * Legacy method for backward compatibility.
+     * @deprecated Use {@link #filterLayoutTokensByTypedAreas(List)} instead.
+     */
+    @Deprecated
+    public void filterLayoutTokensByIgnoreAreas(List<IgnoreArea> ignoreAreas) {
+        // Convert all ignore areas to IGNORE type and use new method
+        List<IgnoreArea> typedAreas = new ArrayList<>();
+        if (ignoreAreas != null) {
+            for (IgnoreArea area : ignoreAreas) {
+                // Create a new area with IGNORE type
+                IgnoreArea ignoreArea = new IgnoreArea(area.getPage(), area.getX(), area.getY(),
+                                                      area.getWidth(), area.getHeight(), AreaType.IGNORE);
+                typedAreas.add(ignoreArea);
+            }
+        }
+        filterLayoutTokensByTypedAreas(typedAreas);
     }
 }

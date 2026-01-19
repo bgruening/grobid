@@ -76,6 +76,7 @@ public class GrobidRestProcessFiles {
              false,
              0,
              2,
+             null,
              expectedResponseType
          );
      }
@@ -97,6 +98,7 @@ public class GrobidRestProcessFiles {
              false,
              startPage,
              endPage,
+             null,
              expectedResponseType
          );
      }
@@ -109,6 +111,7 @@ public class GrobidRestProcessFiles {
         final boolean includeDiscardedText,
         int startPage,
         int endPage,
+        final List<org.grobid.core.layout.IgnoreArea> typedAreas,
         ExpectedResponseType expectedResponseType
     ) {
         LOGGER.debug(methodLogIn());
@@ -141,15 +144,20 @@ public class GrobidRestProcessFiles {
             BiblioItem result = new BiblioItem();
 
             // starts conversion process
+            GrobidAnalysisConfig config = GrobidAnalysisConfig.builder()
+                .consolidateHeader(consolidate)
+                .includeRawAffiliations(includeRawAffiliations)
+                .includeRawCopyrights(includeRawCopyrights)
+                .includeDiscardedText(includeDiscardedText)
+                .startPage(startPage)
+                .endPage(endPage)
+                .typedAreas(typedAreas)
+                .build();
+
             retVal = engine.processHeader(
                 originFile.getAbsolutePath(),
                 md5Str,
-                consolidate,
-                includeRawAffiliations,
-                includeRawCopyrights,
-                includeDiscardedText,
-                startPage,
-                endPage,
+                config,
                 result
             );
 
@@ -201,7 +209,8 @@ public class GrobidRestProcessFiles {
         final int consolidateFunders,
         final boolean includeRawAffiliations,
         final boolean includeRawCopyrights,
-        final boolean includeDiscardedText
+        final boolean includeDiscardedText,
+        final List<org.grobid.core.layout.IgnoreArea> typedAreas
     ) {
         LOGGER.debug(methodLogIn());
         String retVal = null;
@@ -231,14 +240,19 @@ public class GrobidRestProcessFiles {
             String md5Str = DatatypeConverter.printHexBinary(digest).toUpperCase();
 
             // starts conversion process
+            GrobidAnalysisConfig config = GrobidAnalysisConfig.builder()
+                .consolidateHeader(consolidateHeader)
+                .consolidateFunders(consolidateFunders)
+                .includeRawAffiliations(includeRawAffiliations)
+                .includeRawCopyrights(includeRawCopyrights)
+                .includeDiscardedText(includeDiscardedText)
+                .typedAreas(typedAreas)
+                .build();
+
             retVal = engine.processHeaderFunding(
                 originFile,
                 md5Str,
-                consolidateHeader,
-                consolidateFunders,
-                includeRawAffiliations,
-                includeRawCopyrights,
-                includeDiscardedText
+                config
             );
 
             if (GrobidRestUtils.isResultNullOrEmpty(retVal)) {
@@ -300,7 +314,8 @@ public class GrobidRestProcessFiles {
                                         final int endPage,
                                         final boolean generateIDs,
                                         final boolean segmentSentences,
-                                        final List<String> teiCoordinates) throws Exception {
+                                        final List<String> teiCoordinates,
+                                        final List<org.grobid.core.layout.IgnoreArea> typedAreas) throws Exception {
         LOGGER.debug(methodLogIn());
 
         String retVal = null;
@@ -344,6 +359,7 @@ public class GrobidRestProcessFiles {
                     .generateTeiCoordinates(teiCoordinates)
                     .withSentenceSegmentation(segmentSentences)
                     .flavor(flavor)
+                    .typedAreas(typedAreas)
                     .build();
 
             retVal = engine.fullTextToTEI(originFile, flavor, md5Str, config);
@@ -479,7 +495,8 @@ public class GrobidRestProcessFiles {
         final int endPage,
         final boolean generateIDs,
         final boolean segmentSentences,
-        final List<String> teiCoordinates
+        final List<String> teiCoordinates,
+        final List<org.grobid.core.layout.IgnoreArea> typedAreas
     ) throws Exception {
 
         LOGGER.debug(methodLogIn());
@@ -528,6 +545,7 @@ public class GrobidRestProcessFiles {
                     .pdfAssetPath(new File(assetPath))
                     .withSentenceSegmentation(segmentSentences)
                     .flavor(flavor)
+                    .typedAreas(typedAreas)
                     .build();
 
             retVal = engine.fullTextToTEI(originFile, flavor, md5Str, config);

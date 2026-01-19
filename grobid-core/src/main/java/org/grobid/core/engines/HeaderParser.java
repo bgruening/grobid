@@ -95,6 +95,14 @@ public class HeaderParser extends AbstractParser {
             documentSource.setMD5(md5Str);
             Document doc = parsers.getSegmentationParser().processing(documentSource, config);
 
+            // Apply typed areas filtering if configured (takes precedence over legacy ignoreAreas)
+            if (config.getTypedAreas() != null && !config.getTypedAreas().isEmpty()) {
+                doc.filterLayoutTokensByTypedAreas(config.getTypedAreas());
+            } else if (config.getIgnoreAreas() != null && !config.getIgnoreAreas().isEmpty()) {
+                // Legacy support for old ignoreAreas
+                doc.filterLayoutTokensByIgnoreAreas(config.getIgnoreAreas());
+            }
+
             String tei = processingHeaderSection(config, doc, resHeader, true);
             return new ImmutablePair<String, Document>(tei, doc);
         } finally {

@@ -2,9 +2,11 @@ package org.grobid.core.engines.config;
 
 import java.io.File;
 import java.util.List;
+import java.util.ArrayList;
 
 import org.grobid.core.GrobidModels;
 import org.grobid.core.analyzers.Analyzer;
+import org.grobid.core.layout.IgnoreArea;
 
 /**
  * A class representing the runtime configuration values needed in the analysis chain
@@ -91,8 +93,14 @@ public class GrobidAnalysisConfig {
     // a particular Grobid Analyzer to be used for tokenizing/filtering text
     private Analyzer analyzer = null;
 
-    // if true, the TEI text will be segmented into sentences 
+    // if true, the TEI text will be segmented into sentences
     private boolean withSentenceSegmentation = false;
+
+    // list of areas to ignore during processing (legacy)
+    private List<IgnoreArea> ignoreAreas = null;
+
+    // list of typed areas for specialized processing
+    private List<IgnoreArea> typedAreas = null;
 
     public boolean isIncludeDiscardedText() {
         return includeDiscardedText;
@@ -215,6 +223,15 @@ public class GrobidAnalysisConfig {
             return this;
         }
 
+        public GrobidAnalysisConfigBuilder ignoreAreas(List<IgnoreArea> areas) {
+            config.ignoreAreas = areas;
+            return this;
+        }
+
+        public GrobidAnalysisConfigBuilder typedAreas(List<IgnoreArea> areas) {
+            config.typedAreas = areas;
+            return this;
+        }
 
         public GrobidAnalysisConfig build() {
             postProcessAndValidate();
@@ -341,5 +358,17 @@ public class GrobidAnalysisConfig {
 
     public String getFlavor() {
         return flavor;
+    }
+
+    public List<IgnoreArea> getIgnoreAreas() {
+        return ignoreAreas;
+    }
+
+    public List<IgnoreArea> getTypedAreas() {
+        return typedAreas;
+    }
+
+    public void setTypedAreas(List<IgnoreArea> typedAreas) {
+        this.typedAreas = typedAreas;
     }
 }

@@ -642,30 +642,30 @@ public class Document implements Serializable {
      * in headers or footnotes.
      */
     public List<String> getDOIMatches() {
-        List<String> results = new ArrayList<String>();
+        List<String> results = new ArrayList<>();
         List<Page> pages = getPages();
-        int p = 0;
-        for (Page page : pages) {
-            if (CollectionUtils.isNotEmpty(page.getBlocks())) {
-                for (int blockIndex = 0; blockIndex < page.getBlocks().size(); blockIndex++) {
-                    Block block = page.getBlocks().get(blockIndex);
-                    String localText = block.getText();
-                    if (StringUtils.isNotBlank(localText)) {
-                        localText = localText.trim();
-                        Matcher DOIMatcher = TextUtilities.DOIPattern.matcher(localText);
-                        while (DOIMatcher.find()) {
-                            String theDOI = DOIMatcher.group();
-                            if (!results.contains(theDOI)) {
-                                results.add(theDOI);
-                            }
+        if (CollectionUtils.isEmpty(pages)) {
+            return results;
+        }
+
+        Page firstPage = pages.getFirst();
+        if (CollectionUtils.isNotEmpty(firstPage.getBlocks())) {
+            for (int blockIndex = 0; blockIndex < firstPage.getBlocks().size(); blockIndex++) {
+                Block block = firstPage.getBlocks().get(blockIndex);
+                String localText = block.getText();
+                if (StringUtils.isNotBlank(localText)) {
+                    localText = localText.trim();
+                    Matcher DOIMatcher = TextUtilities.DOIPattern.matcher(localText);
+                    while (DOIMatcher.find()) {
+                        String theDOI = DOIMatcher.group();
+                        if (!results.contains(theDOI)) {
+                            results.add(theDOI);
                         }
                     }
                 }
             }
-            if (p > 1)
-                break;
-            p++;
         }
+
         return results;
     }
 

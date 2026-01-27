@@ -1025,6 +1025,42 @@ public class BiblioItem {
         this.doi = cleanDOI(id);
     } 
 
+    /**
+     * Updates the DOI only if the new DOI is a more complete version of the current
+     * one.
+     * The new DOI must START WITH the existing DOI and be longer, with the
+     * extension
+     * starting with a valid DOI separator (hyphen, slash, or dot).
+     * This ensures we only accept true extensions (e.g., completing a truncated
+     * DOI)
+     * and reject garbage appends like page numbers.
+     * 
+     * @param newDoi the candidate DOI to potentially use as replacement
+     */
+    public void updateDOIIfLonger(String newDoi) {
+        if (newDoi == null) {
+            return;
+        }
+        String cleanedNewDoi = cleanDOI(newDoi);
+
+        // If no existing DOI, accept the new one
+        if (this.doi == null || this.doi.isEmpty()) {
+            this.doi = cleanedNewDoi;
+            return;
+        }
+
+        // Only replace if the new DOI is an extension of the existing one
+        if (cleanedNewDoi.startsWith(this.doi) && cleanedNewDoi.length() > this.doi.length()) {
+            // Check that the extension starts with a valid DOI separator
+            // Valid DOI suffixes typically start with: - / .
+            // This rejects garbage like "1of12" being appended
+            char extensionStart = cleanedNewDoi.charAt(this.doi.length());
+            if (extensionStart == '-' || extensionStart == '/' || extensionStart == '.') {
+                this.doi = cleanedNewDoi;
+            }
+        }
+    }
+
     public void setInDOI(String id) {
         if (id != null) {
             inDOI = StringUtils.normalizeSpace(id);
@@ -1078,7 +1114,11 @@ public class BiblioItem {
             doi = doi.substring(1);
 
         if (doi.endsWith(")") || doi.endsWith("]") || doi.endsWith("⟩"))
-            doi = doi.substring(0,doi.length()-1);
+            doi = doi.substring(0, doi.length() - 1);
+
+        // remove trailing dot (common extraction artifact)
+        if (doi.endsWith("."))
+            doi = doi.substring(0, doi.length() - 1);
 
         return doi;
     }

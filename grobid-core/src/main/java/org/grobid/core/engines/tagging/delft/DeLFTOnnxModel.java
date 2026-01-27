@@ -58,7 +58,7 @@ public class DeLFTOnnxModel implements Closeable {
         this.modelRunner = new OnnxSequenceLabellingModel(modelDir.resolve("encoder.onnx"));
         this.crfDecoder = CRFDecoder.fromJson(modelDir.resolve("crf_params.json"));
         this.preprocessor = Preprocessor.fromJson(modelDir.resolve("vocab.json"));
-        this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);
+        this.embeddings = WordEmbeddings.getInstance(embeddingsPath, embeddingSize);
 
         LOGGER.info("DeLFT model loaded from {}", modelDir);
         LOGGER.info("Model has features: {}", preprocessor.hasFeatures());
@@ -82,7 +82,7 @@ public class DeLFTOnnxModel implements Closeable {
         this.modelRunner = new OnnxSequenceLabellingModel(modelDir.resolve("encoder.onnx"));
         this.crfDecoder = CRFDecoder.fromJson(modelDir.resolve("crf_params.json"));
         this.preprocessor = Preprocessor.fromJson(modelDir.resolve("vocab.json"));
-        this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);
+        this.embeddings = WordEmbeddings.getInstance(embeddingsPath, embeddingSize);
 
         LOGGER.info("DeLFT model loaded from {}", modelDir);
         LOGGER.info("Model has features: {}", preprocessor.hasFeatures());

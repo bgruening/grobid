@@ -1,5 +1,7 @@
 package org.grobid.core.engines.tagging.delft;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.lmdbjava.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +13,12 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Word embeddings lookup using LMDB database.
@@ -18,27 +26,93 @@ import java.nio.file.Path;
  * Reads embeddings from LMDB where values are raw float32 arrays
  * (little-endian).
  * Use convert_lmdb_embeddings.py to convert from pickled numpy format.
+ * 
+ * This class is a singleton per embeddings path - multiple models using the
+ * same embeddings (e.g., glove-840B) share a single LMDB connection.
+ * Use {@link #getInstance(Path, int)} to obtain instances.
  */
 public class WordEmbeddings implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(WordEmbeddings.class);
 
+    // Singleton registry keyed by absolute path
+    private static final ConcurrentHashMap<String, WordEmbeddings> INSTANCES = new ConcurrentHashMap<>();
+
+    // Default max cache size: 200K entries (~240MB for 300-dim embeddings)
+    private static final int DEFAULT_CACHE_SIZE = 200_000;
+
     private final Env<ByteBuffer> env;
     private final Dbi<ByteBuffer> dbi;
     private final int embeddingSize;
     private final float[] zeroVector;
+    private final AtomicInteger refCount = new AtomicInteger(0); // Track how many models are using this instance
+
+    // LRU cache for embeddings - eliminates repeated LMDB lookups (using Guava)
+    private final Cache<String, float[]> cache;
+
+    // Instrumentation for LMDB access pattern analysis
+    private final AtomicLong totalLookups = new AtomicLong();
+    private final AtomicLong cacheHits = new AtomicLong();
+    private final AtomicLong totalLookupTimeNs = new AtomicLong();
+    private final AtomicLong misses = new AtomicLong(); // Words not found in DB
+    private final ConcurrentHashMap<String, Boolean> uniqueWords = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService statsScheduler;
+    private final String dbName;
 
     /**
-     * Open LMDB database for word embeddings.
+     * Get a shared WordEmbeddings instance for the given path.
+     * 
+     * Multiple models using the same embeddings path will share a single LMDB
+     * connection, reducing resource usage and reader slot contention.
+     * 
+     * @param dbPath        Path to the LMDB database directory
+     * @param embeddingSize Dimension of the embeddings
+     * @return Shared WordEmbeddings instance
+     * @throws IOException if the database cannot be opened
+     */
+    public static WordEmbeddings getInstance(Path dbPath, int embeddingSize) throws IOException {
+        String key = dbPath.toAbsolutePath().toString();
+
+        WordEmbeddings instance = INSTANCES.get(key);
+        if (instance != null) {
+            instance.refCount.incrementAndGet();
+            LOGGER.debug("Reusing existing WordEmbeddings instance for {} (refCount={})",
+                    key, instance.refCount.get());
+            return instance;
+        }
+
+        // Double-checked locking for thread-safe lazy initialization
+        synchronized (INSTANCES) {
+            instance = INSTANCES.get(key);
+            if (instance == null) {
+                instance = new WordEmbeddings(dbPath, embeddingSize);
+                INSTANCES.put(key, instance);
+                LOGGER.info("Created new WordEmbeddings singleton for {}", key);
+            }
+            instance.refCount.incrementAndGet();
+            return instance;
+        }
+    }
+
+    /**
+     * Private constructor - use {@link #getInstance(Path, int)} instead.
      * 
      * @param dbPath        Path to the LMDB database directory
      * @param embeddingSize Dimension of the embeddings
      * @throws IOException if the database cannot be opened (missing path, LMDB
      *                     error, or native library issue)
      */
-    public WordEmbeddings(Path dbPath, int embeddingSize) throws IOException {
+    private WordEmbeddings(Path dbPath, int embeddingSize) throws IOException {
         this.embeddingSize = embeddingSize;
         this.zeroVector = new float[embeddingSize];
+        this.dbName = dbPath.getFileName().toString();
+
+        // Initialize Guava Cache with LRU eviction (max 200K entries ~240MB for
+        // 300-dim)
+        this.cache = CacheBuilder.newBuilder()
+                .maximumSize(DEFAULT_CACHE_SIZE)
+                .recordStats() // Enable cache statistics
+                .build();
 
         // Check if path exists before trying to open
         if (!Files.exists(dbPath)) {
@@ -72,7 +146,47 @@ public class WordEmbeddings implements Closeable {
         // Validate that the database contains raw float32 format (not pickled numpy)
         validateEmbeddingFormat(dbPath);
 
-        LOGGER.info("Opened LMDB database at {}", dbPath);
+        // Start the stats logging scheduler (every 30 seconds)
+        this.statsScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "lmdb-stats-" + dbName);
+            t.setDaemon(true);
+            return t;
+        });
+        statsScheduler.scheduleAtFixedRate(this::logStats, 30, 30, TimeUnit.SECONDS);
+
+        LOGGER.info("Opened LMDB database at {} (stats logging enabled every 30s)", dbPath);
+    }
+
+    /**
+     * Log accumulated statistics about LMDB access patterns.
+     * Called every 30 seconds by the stats scheduler.
+     */
+    private void logStats() {
+        long lookups = totalLookups.get();
+        if (lookups == 0) {
+            return; // Don't log if no activity
+        }
+
+        long timeNs = totalLookupTimeNs.get();
+        long missCount = misses.get();
+        long hits = cacheHits.get();
+        int uniqueCount = uniqueWords.size();
+        long cacheSize = cache.size();
+
+        // Calculate metrics
+        double cacheHitRate = lookups > 0 ? 100.0 * hits / lookups : 0.0;
+        double dbHitRate = lookups > 0 ? 100.0 * (lookups - missCount) / lookups : 0.0;
+        double repeatRatio = uniqueCount > 0 ? (double) lookups / uniqueCount : 0.0;
+        long lmdbLookups = lookups - hits;
+        double avgLmdbTimeMs = lmdbLookups > 0 ? (timeNs / (double) lmdbLookups) / 1_000_000.0 : 0.0;
+
+        LOGGER.info("LMDB [{}] stats: {} lookups, cache hit: {}% ({} entries), " +
+                "DB hit: {}%, repeat ratio: {}x, avg LMDB lookup: {}ms",
+                dbName, lookups,
+                String.format("%.1f", cacheHitRate), cacheSize,
+                String.format("%.1f", dbHitRate),
+                String.format("%.1f", repeatRatio),
+                String.format("%.3f", avgLmdbTimeMs));
     }
 
     /**
@@ -90,25 +204,48 @@ public class WordEmbeddings implements Closeable {
         ByteBuffer keyBuffer = ByteBuffer.allocateDirect(keyBytes.length);
         keyBuffer.put(keyBytes).flip();
 
-        try (Txn<ByteBuffer> txn = env.txnRead()) {
-            ByteBuffer valueBuffer = dbi.get(txn, keyBuffer);
+        // Retry logic for LMDB BadReaderLockException under high concurrency
+        int maxRetries = 3;
+        int retryDelayMs = 10;
 
-            if (valueBuffer == null) {
-                // Word not found, return zero vector
-                return zeroVector.clone();
-            }
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
+            try (Txn<ByteBuffer> txn = env.txnRead()) {
+                ByteBuffer valueBuffer = dbi.get(txn, keyBuffer);
 
-            // Parse float array from raw bytes (little-endian float32)
-            valueBuffer.order(ByteOrder.LITTLE_ENDIAN);
-            float[] embedding = new float[embeddingSize];
-            for (int i = 0; i < embeddingSize; i++) {
-                embedding[i] = valueBuffer.getFloat();
+                if (valueBuffer == null) {
+                    // Word not found, return zero vector
+                    return zeroVector.clone();
+                }
+
+                // Parse float array from raw bytes (little-endian float32)
+                valueBuffer.order(ByteOrder.LITTLE_ENDIAN);
+                float[] embedding = new float[embeddingSize];
+                for (int i = 0; i < embeddingSize; i++) {
+                    embedding[i] = valueBuffer.getFloat();
+                }
+                return embedding;
+            } catch (Txn.BadReaderLockException e) {
+                if (attempt < maxRetries - 1) {
+                    LOGGER.debug("LMDB reader lock contention (attempt {}), retrying", attempt + 1);
+                    try {
+                        Thread.sleep(retryDelayMs);
+                        retryDelayMs *= 2;
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Interrupted during LMDB retry", ie);
+                    }
+                } else {
+                    throw new RuntimeException(
+                            "LMDB error after " + maxRetries + " retries for word '" + word + "': " + e.getMessage(),
+                            e);
+                }
+            } catch (LmdbException e) {
+                throw new RuntimeException(
+                        "LMDB database error during embedding lookup for word '" + word + "': " + e.getMessage(), e);
             }
-            return embedding;
-        } catch (LmdbException e) {
-            throw new RuntimeException(
-                    "LMDB database error during embedding lookup for word '" + word + "': " + e.getMessage(), e);
         }
+
+        throw new RuntimeException("LMDB lookup failed after retries for word '" + word + "'");
     }
 
     /**
@@ -143,16 +280,40 @@ public class WordEmbeddings implements Closeable {
     public float[][] getEmbeddings(String[] words) {
         float[][] result = new float[words.length][embeddingSize];
 
-        try (Txn<ByteBuffer> txn = env.txnRead()) {
-            for (int i = 0; i < words.length; i++) {
-                result[i] = getEmbeddingWithTxn(words[i], txn);
+        // Retry logic for LMDB BadReaderLockException under high concurrency
+        int maxRetries = 3;
+        int retryDelayMs = 10;
+
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
+            try (Txn<ByteBuffer> txn = env.txnRead()) {
+                for (int i = 0; i < words.length; i++) {
+                    result[i] = getEmbeddingWithTxn(words[i], txn);
+                }
+                return result; // Success, return immediately
+            } catch (Txn.BadReaderLockException e) {
+                // Reader slot contention under high concurrency - retry after brief delay
+                if (attempt < maxRetries - 1) {
+                    LOGGER.debug("LMDB reader lock contention (attempt {}), retrying after {}ms",
+                            attempt + 1, retryDelayMs);
+                    try {
+                        Thread.sleep(retryDelayMs);
+                        retryDelayMs *= 2; // Exponential backoff
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Interrupted during LMDB retry", ie);
+                    }
+                } else {
+                    throw new RuntimeException(
+                            "LMDB database error after " + maxRetries + " retries: " + e.getMessage(), e);
+                }
+            } catch (LmdbException e) {
+                throw new RuntimeException(
+                        "LMDB database error during batch embedding lookup: " + e.getMessage(), e);
             }
-        } catch (LmdbException e) {
-            throw new RuntimeException(
-                    "LMDB database error during batch embedding lookup: " + e.getMessage(), e);
         }
 
-        return result;
+        // Should not reach here, but satisfy compiler
+        throw new RuntimeException("LMDB lookup failed after retries");
     }
 
     /**
@@ -166,15 +327,34 @@ public class WordEmbeddings implements Closeable {
         // Normalize digits to "0" like Python's _normalize_num
         String normalizedWord = normalizeNum(word);
 
+        // Track lookups and unique words
+        totalLookups.incrementAndGet();
+        uniqueWords.putIfAbsent(normalizedWord, Boolean.TRUE);
+
+        // Check cache first - avoids LMDB disk I/O for repeated words
+        float[] cached = cache.getIfPresent(normalizedWord);
+        if (cached != null) {
+            cacheHits.incrementAndGet();
+            return cached; // Return cached copy (no clone needed - embeddings are read-only)
+        }
+
+        // Cache miss - look up in LMDB
+        long startNs = System.nanoTime();
+
         byte[] keyBytes = normalizedWord.getBytes(StandardCharsets.UTF_8);
         ByteBuffer keyBuffer = ByteBuffer.allocateDirect(keyBytes.length);
         keyBuffer.put(keyBytes).flip();
 
         ByteBuffer valueBuffer = dbi.get(txn, keyBuffer);
 
+        totalLookupTimeNs.addAndGet(System.nanoTime() - startNs);
+
         if (valueBuffer == null) {
-            // Word not found, return zero vector
-            return zeroVector.clone();
+            // Word not found, cache and return zero vector
+            misses.incrementAndGet();
+            float[] zero = zeroVector.clone();
+            cache.put(normalizedWord, zero);
+            return zero;
         }
 
         // Parse float array from raw bytes (little-endian float32)
@@ -183,6 +363,9 @@ public class WordEmbeddings implements Closeable {
         for (int i = 0; i < embeddingSize; i++) {
             embedding[i] = valueBuffer.getFloat();
         }
+
+        // Store in cache for future lookups
+        cache.put(normalizedWord, embedding);
         return embedding;
     }
 
@@ -252,6 +435,32 @@ public class WordEmbeddings implements Closeable {
 
     @Override
     public void close() {
+        // Reference counting: only close if this is the last reference
+        int remaining = refCount.decrementAndGet();
+        if (remaining > 0) {
+            LOGGER.debug("WordEmbeddings [{}] close called, but {} references remain", dbName, remaining);
+            return;
+        }
+
+        // Remove from singleton registry
+        INSTANCES.values().remove(this);
+        LOGGER.info("Closing WordEmbeddings singleton for {}", dbName);
+
+        // Shutdown stats scheduler first
+        if (statsScheduler != null) {
+            statsScheduler.shutdown();
+            try {
+                if (!statsScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                    statsScheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                statsScheduler.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            // Log final stats before closing
+            logStats();
+        }
+
         if (dbi != null) {
             dbi.close();
         }

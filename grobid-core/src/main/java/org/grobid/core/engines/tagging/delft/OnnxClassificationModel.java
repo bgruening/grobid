@@ -111,7 +111,7 @@ public class OnnxClassificationModel implements GenericClassifier {
         this.session = env.createSession(modelDir.resolve("classifier.onnx").toString(), options);
 
         // Load embeddings
-        this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);
+        this.embeddings = WordEmbeddings.getInstance(embeddingsPath, embeddingSize);
 
         LOGGER.info("ONNX classification model {} loaded (single-threaded, sequential mode)", modelName);
         LOGGER.info("Labels: {}", String.join(", ", labels));

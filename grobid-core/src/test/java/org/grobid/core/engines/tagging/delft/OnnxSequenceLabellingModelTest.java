@@ -5,9 +5,9 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * Unit tests for DeLFTOnnxModel sequence chunking functionality.
+ * Unit tests for OnnxSequenceLabellingModel sequence chunking functionality.
  */
-public class DeLFTOnnxModelTest {
+public class OnnxSequenceLabellingModelTest {
 
     /**
      * Test that input is correctly split into sequences at empty lines.

@@ -2,7 +2,7 @@ package org.grobid.core.engines.tagging;
 
 import com.google.common.base.Joiner;
 import org.grobid.core.GrobidModel;
-import org.grobid.core.engines.tagging.delft.DeLFTOnnxModel;
+import org.grobid.core.engines.tagging.delft.OnnxSequenceLabellingModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +23,7 @@ public class OnnxTagger implements GenericTagger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OnnxTagger.class);
 
-    private final DeLFTOnnxModel model;
+    private final OnnxSequenceLabellingModel model;
     private final GrobidModel grobidModel;
 
     /**
@@ -43,7 +43,7 @@ public class OnnxTagger implements GenericTagger {
         LOGGER.info("Loading ONNX model from: {}", modelDir);
 
         try {
-            this.model = new DeLFTOnnxModel(modelDir.toPath());
+            this.model = new OnnxSequenceLabellingModel(modelDir.toPath());
         } catch (Exception e) {
             throw new RuntimeException("Failed to load ONNX model: " + modelDir, e);
         }

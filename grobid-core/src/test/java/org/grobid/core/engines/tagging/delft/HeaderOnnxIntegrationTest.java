@@ -45,7 +45,7 @@ public class HeaderOnnxIntegrationTest {
 
     private static Path modelPath;
     private static Path embeddingsPath;
-    private DeLFTOnnxModel model;
+    private OnnxSequenceLabellingModel model;
 
     @BeforeClass
     public static void setUpClass() {
@@ -75,7 +75,7 @@ public class HeaderOnnxIntegrationTest {
                 Files.exists(embeddingsPath) && Files.isDirectory(embeddingsPath));
 
         // Load model
-        model = new DeLFTOnnxModel(modelPath);
+        model = new OnnxSequenceLabellingModel(modelPath);
     }
 
     @After
@@ -104,8 +104,8 @@ public class HeaderOnnxIntegrationTest {
 
         List<LayoutToken> allTokens = GrobidAnalyzer.getInstance().tokenizeWithLayoutToken(input);
         List<LayoutToken> filtered = allTokens.stream()
-            .filter( token -> StringUtils.isNotBlank(token.getText()))
-            .collect(Collectors.toList());
+                .filter(token -> StringUtils.isNotBlank(token.getText()))
+                .collect(Collectors.toList());
 
         String[] words = new String[filtered.size()];
         String[][] features = new String[filtered.size()][model.getNumFeatures()];
@@ -115,7 +115,7 @@ public class HeaderOnnxIntegrationTest {
             features[i] = featuresVectorHeader.printVector().split("\n");
         }
 
-        DeLFTOnnxModel.AnnotationResult result = model.annotateTokens(words, features);
+        OnnxSequenceLabellingModel.AnnotationResult result = model.annotateTokens(words, features);
 
         assertThat(result, is(notNullValue()));
         assertThat(result.getTokens(), is(notNullValue()));
@@ -126,7 +126,7 @@ public class HeaderOnnxIntegrationTest {
 
         long otherLabel = Arrays.stream(result.getLabels()).filter(v -> v.equalsIgnoreCase("<other>")).count();
 
-        assertThat(otherLabel, lessThan((long)result.getLabels().length));
+        assertThat(otherLabel, lessThan((long) result.getLabels().length));
     }
 
     @Test
@@ -177,7 +177,7 @@ public class HeaderOnnxIntegrationTest {
             }
         }
 
-        DeLFTOnnxModel.AnnotationResult result = model.annotateTokens(tokens, features);
+        OnnxSequenceLabellingModel.AnnotationResult result = model.annotateTokens(tokens, features);
 
         assertThat(result, is(notNullValue()));
         assertThat(result.getLabels().length, is(tokens.length));
@@ -186,7 +186,7 @@ public class HeaderOnnxIntegrationTest {
 
         long otherLabel = Arrays.stream(result.getLabels()).filter(v -> v.equalsIgnoreCase("<other>")).count();
 
-        assertThat(otherLabel, lessThan((long)result.getLabels().length));
+        assertThat(otherLabel, lessThan((long) result.getLabels().length));
     }
 
     @Test

@@ -1,9 +1,6 @@
 package org.grobid.core.engines.tagging.delft;
 
-import ai.onnxruntime.OnnxTensor;
-import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
-import ai.onnxruntime.OrtSession;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -16,7 +13,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.FloatBuffer;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -40,8 +36,7 @@ public class OnnxClassificationModel implements GenericClassifier {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OnnxClassificationModel.class);
 
-    private final OrtEnvironment env;
-    private final OrtSession session;
+    private final OnnxClassificationRunner modelRunner;
     private final WordEmbeddings embeddings;
     private final String[] labels;
     private final Map<String, Integer> labelToIndex;
@@ -96,14 +91,11 @@ public class OnnxClassificationModel implements GenericClassifier {
         LOGGER.info("Loading ONNX classification model from: {}", modelDir);
         LOGGER.info("Loading embeddings from: {}", embeddingsPath);
 
-        // Load ONNX model
-        this.env = OrtEnvironment.getEnvironment();
-        OrtSession.SessionOptions options = new OrtSession.SessionOptions();
-        options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-        this.session = env.createSession(modelDir.resolve("classifier.onnx").toString(), options);
+        // Load ONNX model via runner
+        this.modelRunner = new OnnxClassificationRunner(modelDir.resolve("classifier.onnx"));
 
         // Load embeddings
-        this.embeddings = new WordEmbeddings(embeddingsPath, embeddingSize);
+        this.embeddings = WordEmbeddings.getInstance(embeddingsPath, embeddingSize);
 
         LOGGER.info("ONNX classification model {} loaded", modelName);
         LOGGER.info("Labels: {}", String.join(", ", labels));
@@ -160,60 +152,22 @@ public class OnnxClassificationModel implements GenericClassifier {
     /**
      * Run ONNX inference.
      * 
-     * @param embeddings Input embeddings [batch, maxlen, embeddingSize]
-     * @return Predictions [batch, numClasses]
+     * @param embeddingsInput Input embeddings [batch, maxlen, embeddingSize]
+     * @return Predictions [batch, numClasses] (softmax-normalized probabilities)
      */
     private float[][] runInference(float[][][] embeddingsInput) throws OrtException {
-        int batchSize = embeddingsInput.length;
+        // Delegate to runner for ONNX inference
+        float[][] logits = modelRunner.runInference(embeddingsInput);
 
-        // Flatten embeddings for ONNX tensor
-        float[] flat = new float[batchSize * maxlen * embeddingSize];
-        int idx = 0;
+        // Apply softmax to convert logits to probabilities
+        int batchSize = logits.length;
+        int numClasses = logits[0].length;
+        float[][] predictions = new float[batchSize][numClasses];
         for (int b = 0; b < batchSize; b++) {
-            for (int s = 0; s < maxlen; s++) {
-                for (int e = 0; e < embeddingSize; e++) {
-                    flat[idx++] = embeddingsInput[b][s][e];
-                }
-            }
+            predictions[b] = softmax(logits[b]);
         }
 
-        // Create input tensor
-        OnnxTensor inputTensor = OnnxTensor.createTensor(env,
-                FloatBuffer.wrap(flat),
-                new long[] { batchSize, maxlen, embeddingSize });
-
-        Map<String, OnnxTensor> inputs = new HashMap<>();
-        // Common input names for classification models
-        String inputName = session.getInputNames().iterator().next();
-        inputs.put(inputName, inputTensor);
-
-        try (OrtSession.Result result = session.run(inputs)) {
-            // Get output - should be [batch, numClasses] (raw logits)
-            OnnxTensor outputTensor = (OnnxTensor) result.get(0);
-            long[] shape = outputTensor.getInfo().getShape();
-            int numClasses = (int) shape[1];
-
-            float[] outputFlat = outputTensor.getFloatBuffer().array();
-
-            // Reshape to 2D
-            float[][] logits = new float[batchSize][numClasses];
-            idx = 0;
-            for (int b = 0; b < batchSize; b++) {
-                for (int c = 0; c < numClasses; c++) {
-                    logits[b][c] = outputFlat[idx++];
-                }
-            }
-
-            // Apply softmax to convert logits to probabilities
-            float[][] predictions = new float[batchSize][numClasses];
-            for (int b = 0; b < batchSize; b++) {
-                predictions[b] = softmax(logits[b]);
-            }
-
-            return predictions;
-        } finally {
-            inputTensor.close();
-        }
+        return predictions;
     }
 
     /**
@@ -271,12 +225,8 @@ public class OnnxClassificationModel implements GenericClassifier {
 
     @Override
     public void close() throws IOException {
-        try {
-            if (session != null) {
-                session.close();
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Error closing ONNX session", e);
+        if (modelRunner != null) {
+            modelRunner.close();
         }
         if (embeddings != null) {
             embeddings.close();

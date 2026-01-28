@@ -403,6 +403,9 @@ logging:
     org.apache.pdfbox.pdmodel.font.PDSimpleFont: "OFF"
     org.glassfish.jersey.internal: "OFF"
     com.squarespace.jersey2.guice.JerseyGuiceUtils: "OFF"
+    # org.eclipse.jetty: "OFF"
+    # org.grobid: "INFO"
+    # org.grobid.core.engines.tagging.delft.WordEmbeddings: "DEBUG"
   appenders:
     - type: console
       threshold: INFO

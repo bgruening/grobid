@@ -54,7 +54,7 @@ public class WordEmbeddingsIntegrationTest {
                 Files.exists(embeddingsPath) && Files.isDirectory(embeddingsPath));
 
         // Open embeddings database
-        embeddings = new WordEmbeddings(embeddingsPath, EMBEDDING_SIZE);
+        embeddings = WordEmbeddings.getInstance(embeddingsPath, EMBEDDING_SIZE);
     }
 
     @After

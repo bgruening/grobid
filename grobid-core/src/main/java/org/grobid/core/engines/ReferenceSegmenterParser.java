@@ -10,10 +10,7 @@ import org.grobid.core.document.DocumentPointer;
 import org.grobid.core.engines.citations.LabeledReferenceResult;
 import org.grobid.core.engines.citations.ReferenceSegmenter;
 import org.grobid.core.engines.label.SegmentationLabels;
-import org.grobid.core.engines.label.TaggingLabels;
 import org.grobid.core.engines.tagging.GenericTaggerUtils;
-import org.grobid.core.engines.tagging.GrobidCRFEngine;
-import org.grobid.core.engines.tagging.delft.DeLFTOnnxModel;
 import org.grobid.core.exceptions.GrobidException;
 import org.grobid.core.features.FeatureFactory;
 import org.grobid.core.features.FeaturesVectorReferenceSegmenter;
@@ -22,13 +19,11 @@ import org.grobid.core.layout.LayoutToken;
 import org.grobid.core.tokenization.LabeledTokensContainer;
 import org.grobid.core.tokenization.TaggingTokenSynchronizer;
 import org.grobid.core.utilities.BoundingBoxCalculator;
-import org.grobid.core.utilities.GrobidProperties;
 import org.grobid.core.utilities.TextUtilities;
 import org.grobid.core.utilities.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 

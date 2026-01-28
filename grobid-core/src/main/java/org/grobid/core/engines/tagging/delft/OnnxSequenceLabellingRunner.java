@@ -14,9 +14,9 @@ import java.util.Map;
 /**
  * ONNX Runtime wrapper for running DeLFT encoder models.
  */
-public class OnnxModelRunner implements Closeable {
+public class OnnxSequenceLabellingRunner implements Closeable {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(OnnxModelRunner.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OnnxSequenceLabellingRunner.class);
 
     private final OrtEnvironment env;
     private final OrtSession session;
@@ -27,18 +27,31 @@ public class OnnxModelRunner implements Closeable {
      * 
      * @param modelPath Path to the .onnx file
      */
-    public OnnxModelRunner(Path modelPath) throws OrtException {
+    public OnnxSequenceLabellingRunner(Path modelPath) throws OrtException {
         this.env = OrtEnvironment.getEnvironment();
 
         OrtSession.SessionOptions options = new OrtSession.SessionOptions();
         options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+
+        // Configure threading for optimal CPU inference performance
+        // Since GROBID manages concurrency at the worker level (e.g., 10 concurrent
+        // workers),
+        // use single-threaded inference per session to avoid CPU oversubscription
+        options.setIntraOpNumThreads(1);
+
+        // interOpNumThreads: threads for parallel execution of multiple operators
+        // Set to 1 since GROBID manages concurrency at a higher level
+        options.setInterOpNumThreads(1);
+
+        // Use sequential execution mode (vs parallel) since GROBID handles parallelism
+        options.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL);
 
         this.session = env.createSession(modelPath.toString(), options);
 
         // Check if model has features input
         this.hasFeatures = session.getInputNames().contains("features_input");
 
-        LOGGER.info("Loaded ONNX model from {}", modelPath);
+        LOGGER.info("Loaded ONNX model from {} (single-threaded, sequential mode)", modelPath);
         LOGGER.info("Input names: {}", session.getInputNames());
         LOGGER.info("Output names: {}", session.getOutputNames());
     }

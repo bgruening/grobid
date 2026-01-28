@@ -24,7 +24,7 @@ def getJavaLibraryPath = {
         }
     } else if (Os.isFamily(Os.FAMILY_UNIX)) {
         jepLocalLibraries = "${rootProject.rootDir.getAbsolutePath()}/grobid-home/lib/lin-64/jep:" +
-            "${rootProject.rootDir.getAbsolutePath()}/grobid-home/lib/lin-64"
+                "${rootProject.rootDir.getAbsolutePath()}/grobid-home/lib/lin-64"
     } else {
         throw new RuntimeException("Unsupported platform!")
     }
@@ -210,13 +210,13 @@ subprojects {
 
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
             jvmArgs "--add-opens", "java.base/java.util.stream=ALL-UNNAMED",
-                "--add-opens", "java.base/java.io=ALL-UNNAMED", 
-                "--add-opens", "java.xml/jdk.xml.internal=ALL-UNNAMED",
-                // PowerMock compatibility with Java 21 - TODO: Replace PowerMock with Mockito/JUnit Jupiter
-                "--add-opens", "java.base/java.lang=ALL-UNNAMED",
-                "--add-opens", "java.base/java.util=ALL-UNNAMED"
+                    "--add-opens", "java.base/java.io=ALL-UNNAMED",
+                    "--add-opens", "java.xml/jdk.xml.internal=ALL-UNNAMED",
+                    // PowerMock compatibility with Java 21 - TODO: Replace PowerMock with Mockito/JUnit Jupiter
+                    "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens", "java.base/java.util=ALL-UNNAMED"
         }
-        
+
         systemProperty "java.library.path", "${javaLibraryPath}"
     }
 
@@ -269,11 +269,11 @@ project("grobid-core") {
         // ONNX Runtime for model inference
         // GPU version (onnxruntime_gpu) only supports Linux with NVIDIA CUDA
         // CPU version (onnxruntime) supports all platforms including macOS ARM64
-        if (System.getProperty("os.name").toLowerCase().contains("linux")) {
-            implementation 'com.microsoft.onnxruntime:onnxruntime_gpu:1.23.2'
-        } else {
-            implementation 'com.microsoft.onnxruntime:onnxruntime:1.23.2'
-        }
+        // if (System.getProperty("os.name").toLowerCase().contains("linux")) {
+        //     implementation 'com.microsoft.onnxruntime:onnxruntime_gpu:1.23.2'
+        // } else {
+        implementation 'com.microsoft.onnxruntime:onnxruntime:1.23.2'
+        // }
 
         // LMDB for word embeddings lookup (0.9.0+ includes Apple Silicon native libs)
         implementation 'org.lmdbjava:lmdbjava:0.9.2'
@@ -321,18 +321,18 @@ project("grobid-core") {
     processResources {
         filesMatching(["grobid-version.txt", "grobid-revision.txt"]) {
             expand(
-                project_version: project.property('version') ?: "unknown",
-                project_revision: rootProject.ext.gitRevision
+                    project_version: project.property('version') ?: "unknown",
+                    project_revision: rootProject.ext.gitRevision
             )
         }
     }
 
     tasks.register(
-        "install",
-        {
-            dependsOn publishToMavenLocal
-            dependsOn 'shadowJar'
-        }
+            "install",
+            {
+                dependsOn publishToMavenLocal
+                dependsOn 'shadowJar'
+            }
     )
 }
 
@@ -358,8 +358,8 @@ project("grobid-home") {
     }
 }
 
+
 import org.apache.tools.ant.taskdefs.condition.Os
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 project(":grobid-service") {
     apply plugin: 'application'
@@ -376,8 +376,8 @@ project(":grobid-service") {
 
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
             jvmArgs "--add-opens", "java.base/java.lang=ALL-UNNAMED",
-                "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
-                "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED" // Required for LMDB
+                    "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
+                    "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED" // Required for LMDB
         }
         workingDir = rootProject.rootDir
 
@@ -514,32 +514,32 @@ project(":grobid-trainer") {
     }
 
     def trainerTasks = [
-        "train_name_header"            : "org.grobid.trainer.NameHeaderTrainer",
-        "train_name_citation"          : "org.grobid.trainer.NameCitationTrainer",
-        "train_affiliation_address"    : "org.grobid.trainer.AffiliationAddressTrainer",
-        "train_shorttext"              : "org.grobid.trainer.ShorttextTrainer",
-        "train_figure"                 : "org.grobid.trainer.FigureTrainer",
-        "train_table"                  : "org.grobid.trainer.TableTrainer",
-        "train_citation"               : "org.grobid.trainer.CitationTrainer",
-        "train_date"                   : "org.grobid.trainer.DateTrainer",
-        "train_reference_segmentation" : "org.grobid.trainer.ReferenceSegmenterTrainer",
-        "train_ebook_model"            : "org.grobid.trainer.EbookTrainer",
-        "train_patent_citation"        : "org.grobid.trainer.PatentParserTrainer",
-        "train_funding_acknowledgement": "org.grobid.trainer.FundingAcknowledgementTrainer"
+            "train_name_header"            : "org.grobid.trainer.NameHeaderTrainer",
+            "train_name_citation"          : "org.grobid.trainer.NameCitationTrainer",
+            "train_affiliation_address"    : "org.grobid.trainer.AffiliationAddressTrainer",
+            "train_shorttext"              : "org.grobid.trainer.ShorttextTrainer",
+            "train_figure"                 : "org.grobid.trainer.FigureTrainer",
+            "train_table"                  : "org.grobid.trainer.TableTrainer",
+            "train_citation"               : "org.grobid.trainer.CitationTrainer",
+            "train_date"                   : "org.grobid.trainer.DateTrainer",
+            "train_reference_segmentation" : "org.grobid.trainer.ReferenceSegmenterTrainer",
+            "train_ebook_model"            : "org.grobid.trainer.EbookTrainer",
+            "train_patent_citation"        : "org.grobid.trainer.PatentParserTrainer",
+            "train_funding_acknowledgement": "org.grobid.trainer.FundingAcknowledgementTrainer"
     ]
 
     def complexTrainerTasks = [
-        "train_header"                        : ["org.grobid.trainer.HeaderTrainer", ""],
-        "train_header_article_light"          : ["org.grobid.trainer.HeaderTrainer", "article/light"],
-        "train_header_article_light_ref"      : ["org.grobid.trainer.HeaderTrainer", "article/light-ref"],
-        "train_header_ietf"                   : ["org.grobid.trainer.HeaderTrainer", "sdo/ietf"],
-        "train_segmentation"                  : ["org.grobid.trainer.SegmentationTrainer", ""],
-        "train_segmentation_article_light"    : ["org.grobid.trainer.SegmentationTrainer", "article/light"],
-        "train_segmentation_article_light_ref": ["org.grobid.trainer.SegmentationTrainer", "article/light-ref"],
-        "train_segmentation_ietf"             : ["org.grobid.trainer.SegmentationTrainer", "sdo/ietf"],
-        "train_fulltext"                      : ["org.grobid.trainer.FulltextTrainer", ""],
-        "train_fulltext_article_light"        : ["org.grobid.trainer.FulltextTrainer", "article/light"],
-        "train_fulltext_article_light_ref"    : ["org.grobid.trainer.FulltextTrainer", "article/light-ref"],
+            "train_header"                        : ["org.grobid.trainer.HeaderTrainer", ""],
+            "train_header_article_light"          : ["org.grobid.trainer.HeaderTrainer", "article/light"],
+            "train_header_article_light_ref"      : ["org.grobid.trainer.HeaderTrainer", "article/light-ref"],
+            "train_header_ietf"                   : ["org.grobid.trainer.HeaderTrainer", "sdo/ietf"],
+            "train_segmentation"                  : ["org.grobid.trainer.SegmentationTrainer", ""],
+            "train_segmentation_article_light"    : ["org.grobid.trainer.SegmentationTrainer", "article/light"],
+            "train_segmentation_article_light_ref": ["org.grobid.trainer.SegmentationTrainer", "article/light-ref"],
+            "train_segmentation_ietf"             : ["org.grobid.trainer.SegmentationTrainer", "sdo/ietf"],
+            "train_fulltext"                      : ["org.grobid.trainer.FulltextTrainer", ""],
+            "train_fulltext_article_light"        : ["org.grobid.trainer.FulltextTrainer", "article/light"],
+            "train_fulltext_article_light_ref"    : ["org.grobid.trainer.FulltextTrainer", "article/light-ref"],
     ]
 
     def libraries = ""
@@ -551,7 +551,7 @@ project(":grobid-trainer") {
         }
     } else if (Os.isFamily(Os.FAMILY_UNIX)) {
         libraries = "${file("../grobid-home/lib/lin-64/jep").absolutePath}:" +
-            "${file("../grobid-home/lib/lin-64").absolutePath}:"
+                "${file("../grobid-home/lib/lin-64").absolutePath}:"
     } else {
         throw new RuntimeException("Unsupported platform!")
     }
@@ -602,9 +602,9 @@ project(":grobid-trainer") {
         args 'nlm', getArg('p2t', '.'), getArg('run', '0'), getArg('fileRatio', '1.0'), getArg('flavor', '')
         def javaLibraryPath = getJavaLibraryPath()
         // Add additional lib paths for native libraries (LMDB)
-        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ? 
-            ":/opt/homebrew/lib:/usr/local/lib" : 
-            Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
+        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ?
+                ":/opt/homebrew/lib:/usr/local/lib" :
+                Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
             jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
                     "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
@@ -621,9 +621,9 @@ project(":grobid-trainer") {
         args 'tei', getArg('p2t', '.'), getArg('run', '0'), getArg('fileRatio', '1.0'), getArg('flavor', '')
         def javaLibraryPath = getJavaLibraryPath()
         // Add additional lib paths for native libraries (LMDB)
-        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ? 
-            ":/opt/homebrew/lib:/usr/local/lib" : 
-            Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
+        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ?
+                ":/opt/homebrew/lib:/usr/local/lib" :
+                Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
             jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
                     "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
@@ -640,9 +640,9 @@ project(":grobid-trainer") {
         args 'data', getArg('p2t', '.')
         def javaLibraryPath = getJavaLibraryPath()
         // Add additional lib paths for native libraries (LMDB)
-        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ? 
-            ":/opt/homebrew/lib:/usr/local/lib" : 
-            Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
+        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ?
+                ":/opt/homebrew/lib:/usr/local/lib" :
+                Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
             jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
                     "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
@@ -660,9 +660,9 @@ project(":grobid-trainer") {
 
         def javaLibraryPath = getJavaLibraryPath()
         // Add additional lib paths for native libraries (LMDB)
-        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ? 
-            ":/opt/homebrew/lib:/usr/local/lib" : 
-            Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
+        def lmdbLibPath = Os.isFamily(Os.FAMILY_MAC) ?
+                ":/opt/homebrew/lib:/usr/local/lib" :
+                Os.isFamily(Os.FAMILY_UNIX) ? ":/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/local/lib" : ""
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_1_8) > 0) {
             jvmArgs '-Xmx3072m', "--add-opens", "java.base/java.lang=ALL-UNNAMED",
                     "--add-opens", "java.base/java.nio=ALL-UNNAMED",  // Required for LMDB
@@ -707,7 +707,7 @@ tasks.register("codeCoverageReport", JacocoReport) {
 
 /** COVERALLS **/
 coveralls {
-        sourceDirs = files(subprojects.findAll { it.plugins.hasPlugin('java') }.sourceSets.main.allSource.srcDirs).files.absolutePath
+    sourceDirs = files(subprojects.findAll { it.plugins.hasPlugin('java') }.sourceSets.main.allSource.srcDirs).files.absolutePath
 }
 
 tasks.coveralls {

@@ -109,10 +109,15 @@ public class WordEmbeddings implements Closeable {
 
         // Initialize Guava Cache with LRU eviction (max 200K entries ~240MB for
         // 300-dim)
-        this.cache = CacheBuilder.newBuilder()
-                .maximumSize(DEFAULT_CACHE_SIZE)
-                .recordStats() // Enable cache statistics
-                .build();
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder()
+                .maximumSize(DEFAULT_CACHE_SIZE);
+
+        // Only enable cache statistics when debug logging is enabled (avoid overhead in
+        // production)
+        if (LOGGER.isDebugEnabled()) {
+            cacheBuilder.recordStats();
+        }
+        this.cache = cacheBuilder.build();
 
         // Check if path exists before trying to open
         if (!Files.exists(dbPath)) {
@@ -146,15 +151,19 @@ public class WordEmbeddings implements Closeable {
         // Validate that the database contains raw float32 format (not pickled numpy)
         validateEmbeddingFormat(dbPath);
 
-        // Start the stats logging scheduler (every 30 seconds)
-        this.statsScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "lmdb-stats-" + dbName);
-            t.setDaemon(true);
-            return t;
-        });
-        statsScheduler.scheduleAtFixedRate(this::logStats, 30, 30, TimeUnit.SECONDS);
-
-        LOGGER.info("Opened LMDB database at {} (stats logging enabled every 30s)", dbPath);
+        // Start the stats logging scheduler only when debug logging is enabled
+        if (LOGGER.isDebugEnabled()) {
+            this.statsScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "lmdb-stats-" + dbName);
+                t.setDaemon(true);
+                return t;
+            });
+            statsScheduler.scheduleAtFixedRate(this::logStats, 30, 30, TimeUnit.SECONDS);
+            LOGGER.info("Opened LMDB database at {} (debug stats logging enabled every 30s)", dbPath);
+        } else {
+            this.statsScheduler = null;
+            LOGGER.info("Opened LMDB database at {}", dbPath);
+        }
     }
 
     /**
@@ -180,7 +189,7 @@ public class WordEmbeddings implements Closeable {
         long lmdbLookups = lookups - hits;
         double avgLmdbTimeMs = lmdbLookups > 0 ? (timeNs / (double) lmdbLookups) / 1_000_000.0 : 0.0;
 
-        LOGGER.info("LMDB [{}] stats: {} lookups, cache hit: {}% ({} entries), " +
+        LOGGER.debug("LMDB [{}] stats: {} lookups, cache hit: {}% ({} entries), " +
                 "DB hit: {}%, repeat ratio: {}x, avg LMDB lookup: {}ms",
                 dbName, lookups,
                 String.format("%.1f", cacheHitRate), cacheSize,

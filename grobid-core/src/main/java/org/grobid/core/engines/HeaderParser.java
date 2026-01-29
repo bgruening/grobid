@@ -298,7 +298,7 @@ public class HeaderParser extends AbstractParser {
                 if (isNotEmpty(dois) && dois.size() == 1) {
                     // Only update header DOI when the page-found DOI is longer/likely more complete
                     if (resHeader != null) {
-                        resHeader.updateDOIIfLonger(dois.get(0));
+                        resHeader.updateDOIIfLonger(dois.getFirst());
                     }
                 }
 

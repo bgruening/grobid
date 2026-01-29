@@ -1044,7 +1044,7 @@ public class BiblioItem {
         String cleanedNewDoi = cleanDOI(newDoi);
 
         // If no existing DOI, accept the new one
-        if (this.doi == null || this.doi.isEmpty()) {
+        if (StringUtils.isBlank(this.doi)) {
             this.doi = cleanedNewDoi;
             return;
         }
@@ -1109,16 +1109,9 @@ public class BiblioItem {
         doi = doi.replaceAll("[\\p{M}]", "");
         doi = doi.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
 
-        // remove possible starting/trailing parenthesis
-        if (doi.startsWith("(") || doi.startsWith("[") || doi.startsWith("⟨"))
-            doi = doi.substring(1);
-
-        if (doi.endsWith(")") || doi.endsWith("]") || doi.endsWith("⟩"))
-            doi = doi.substring(0, doi.length() - 1);
-
-        // remove trailing dot (common extraction artifact)
-        if (doi.endsWith("."))
-            doi = doi.substring(0, doi.length() - 1);
+        // remove possible starting/trailing parenthesis, punctuations
+        doi = StringUtils.stripStart(doi, "([{");
+        doi = StringUtils.stripEnd(doi, ")]}.");
 
         return doi;
     }

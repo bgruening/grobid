@@ -398,7 +398,7 @@ server:
 
 # these logging settings apply to the Grobid service usage mode
 logging:
-  level: INFO
+  level: DEBUG
   loggers:
     org.apache.pdfbox.pdmodel.font.PDSimpleFont: "OFF"
     org.glassfish.jersey.internal: "OFF"
@@ -413,3 +413,10 @@ logging:
       # uncomment to have the logs in json format
       #layout:
       #  type: json
+    - type: file
+      currentLogFilename: logs/grobid-service.log
+      threshold: ALL
+      archive: true
+      archivedLogFilenamePattern: logs/grobid-service-%d.log
+      archivedFileCount: 5
+      timeZone: UTC

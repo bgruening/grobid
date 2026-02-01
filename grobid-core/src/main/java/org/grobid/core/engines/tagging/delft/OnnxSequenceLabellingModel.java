@@ -450,6 +450,8 @@ public class OnnxSequenceLabellingModel implements Closeable {
         String[][] tokensBatch = new String[batchSize][];
         String[][][] featuresBatch = new String[batchSize][][];
 
+        List<Integer> featuresIndices = preprocessor.getFeaturesIndices();
+
         for (int i = 0; i < batchSize; i++) {
             List<String[]> chunk = chunks.get(i);
             tokensBatch[i] = new String[chunk.size()];
@@ -459,12 +461,51 @@ public class OnnxSequenceLabellingModel implements Closeable {
                 String[] parts = chunk.get(j);
                 tokensBatch[i][j] = parts[0];
 
-                if (parts.length > 1) {
+                if (featuresIndices != null && !featuresIndices.isEmpty()) {
                     if (featuresBatch[i] == null) {
-                        featuresBatch[i] = new String[chunk.size()][parts.length - 1];
+                        featuresBatch[i] = new String[chunk.size()][featuresIndices.size()];
                     }
-                    for (int k = 1; k < parts.length; k++) {
-                        featuresBatch[i][j][k - 1] = parts[k];
+
+                    // We need to map the features from the input line to the features expected by
+                    // the model
+                    // The input line parts[0] is the token, parts[1]... are features
+                    // featuresIndices contains the 0-based index of the feature in the training
+                    // data
+                    // We assume the input data has the same structure as training data (Grobid
+                    // structure)
+
+                    for (int k = 0; k < featuresIndices.size(); k++) {
+                        int featureIndex = featuresIndices.get(k);
+                        // parts has token at 0, so feature at index X is at parts[X+1]?
+                        // It depends on the Grobid feature generation.
+                        // Usually Grobid produces token + features corresponding to the full feature
+                        // vector.
+                        // So if featureIndex is 9, it should be at parts[featureIndex] or
+                        // parts[featureIndex+1]?
+                        // Looking at the provided example:
+                        // O o O ... (token is O)
+                        // If token is index 0.
+                        // If the featuresIndices are aligned with the COLUMNS of the input file
+                        // including token?
+                        // Usually featuresIndices in Delft are relative to the feature vector
+                        // (excluding token).
+                        // BUT Grobid dictionary might be different.
+
+                        // Let's assume featuresIndices are 0-based indices of the features *within the
+                        // input line*
+                        // (likely shifted by 1 because of token).
+                        // Wait, in standard DeLFT, featuresIndices refer to the column index in the
+                        // input file.
+                        // If featuresIndices=[9,10...], and the file has 20 columns.
+                        // Then we pick column 9, 10...
+                        // Since parts[0] is token (column 0), then parts[9] is column 9.
+
+                        if (featureIndex < parts.length) {
+                            featuresBatch[i][j][k] = parts[featureIndex];
+                        } else {
+                            // Missing feature in input
+                            featuresBatch[i][j][k] = "0";
+                        }
                     }
                 }
             }
@@ -525,7 +566,7 @@ public class OnnxSequenceLabellingModel implements Closeable {
     }
 
     private static String delft2grobidLabel(String label) {
-        if (label.equals(TaggingLabels.IOB_OTHER_LABEL)) {
+        if (label.equals(TaggingLabels.IOB_OTHER_LABEL) || label.equals("<PAD>") || label.trim().equals("<PAD>")) {
             return TaggingLabels.OTHER_LABEL;
         } else if (label.startsWith(TaggingLabels.IOB_START_ENTITY_LABEL_PREFIX)) {
             return label.replace(TaggingLabels.IOB_START_ENTITY_LABEL_PREFIX,

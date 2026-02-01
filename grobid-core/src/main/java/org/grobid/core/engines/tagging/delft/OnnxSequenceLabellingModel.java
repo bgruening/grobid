@@ -115,6 +115,9 @@ public class OnnxSequenceLabellingModel implements Closeable {
      */
     public AnnotationResult annotateTokens(String[] tokens, String[][] features) throws OrtException {
         int numTokens = Math.min(tokens.length, maxSeqLength);
+        if (tokens.length > maxSeqLength) {
+            LOGGER.warn("Input sequence length {} exceeds maxSeqLength {}. Truncating.", tokens.length, maxSeqLength);
+        }
 
         if (numTokens == 0) {
             return new AnnotationResult(null, new String[0], new String[0]);
@@ -202,6 +205,10 @@ public class OnnxSequenceLabellingModel implements Closeable {
         for (int b = 0; b < batchSize; b++) {
             String[] tokens = tokensBatch[b];
             int numTokens = Math.min(tokens.length, maxSeqLength);
+            if (tokens.length > maxSeqLength) {
+                LOGGER.warn("Input sequence length {} exceeds maxSeqLength {}. Truncating.", tokens.length,
+                        maxSeqLength);
+            }
             numTokensPerSeq[b] = numTokens;
 
             if (numTokens == 0) {

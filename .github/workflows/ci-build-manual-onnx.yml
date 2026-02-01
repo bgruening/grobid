@@ -6,7 +6,7 @@ name: Build and push an ONNX docker image
 on:
   push:
     branches:
-      - onnx-docker
+      - feature/onnx-models
   workflow_dispatch:
     inputs:
       custom_tag:

@@ -483,32 +483,14 @@ public class OnnxSequenceLabellingModel implements Closeable {
 
                     for (int k = 0; k < featuresIndices.size(); k++) {
                         int featureIndex = featuresIndices.get(k);
-                        // parts has token at 0, so feature at index X is at parts[X+1]?
-                        // It depends on the Grobid feature generation.
-                        // Usually Grobid produces token + features corresponding to the full feature
-                        // vector.
-                        // So if featureIndex is 9, it should be at parts[featureIndex] or
-                        // parts[featureIndex+1]?
-                        // Looking at the provided example:
-                        // O o O ... (token is O)
-                        // If token is index 0.
-                        // If the featuresIndices are aligned with the COLUMNS of the input file
-                        // including token?
-                        // Usually featuresIndices in Delft are relative to the feature vector
-                        // (excluding token).
-                        // BUT Grobid dictionary might be different.
+                        // IMPORTANT: featuresIndices values (e.g., 9, 10, ...) are 1-based indices
+                        // into Python's features array, which excludes the token.
+                        // In Python: features = pieces[1:], so features[9] = pieces[10].
+                        // In Java: parts[0] is token, so we need parts[featureIndex + 1] to match.
+                        int adjustedIndex = featureIndex + 1;
 
-                        // Let's assume featuresIndices are 0-based indices of the features *within the
-                        // input line*
-                        // (likely shifted by 1 because of token).
-                        // Wait, in standard DeLFT, featuresIndices refer to the column index in the
-                        // input file.
-                        // If featuresIndices=[9,10...], and the file has 20 columns.
-                        // Then we pick column 9, 10...
-                        // Since parts[0] is token (column 0), then parts[9] is column 9.
-
-                        if (featureIndex < parts.length) {
-                            featuresBatch[i][j][k] = parts[featureIndex];
+                        if (adjustedIndex < parts.length) {
+                            featuresBatch[i][j][k] = parts[adjustedIndex];
                         } else {
                             // Missing feature in input
                             featuresBatch[i][j][k] = "0";
@@ -541,20 +523,32 @@ public class OnnxSequenceLabellingModel implements Closeable {
             return new ArrayList<>();
         }
 
-        // Extract tokens and features
+        // Extract tokens and selected features (using featuresIndices)
         String[] tokens = new String[tokensWithFeatures.size()];
         String[][] features = null;
+        List<Integer> featuresIndices = preprocessor.getFeaturesIndices();
 
         for (int i = 0; i < tokensWithFeatures.size(); i++) {
             String[] parts = tokensWithFeatures.get(i);
             tokens[i] = parts[0];
 
-            if (parts.length > 1 && features == null) {
-                features = new String[tokensWithFeatures.size()][parts.length - 1];
-            }
-            if (features != null) {
-                for (int j = 1; j < parts.length; j++) {
-                    features[i][j - 1] = parts[j];
+            // Extract only the features specified in featuresIndices
+            if (featuresIndices != null && !featuresIndices.isEmpty()) {
+                if (features == null) {
+                    features = new String[tokensWithFeatures.size()][featuresIndices.size()];
+                }
+                for (int k = 0; k < featuresIndices.size(); k++) {
+                    int featureIndex = featuresIndices.get(k);
+                    // IMPORTANT: featuresIndices values (e.g., 9, 10, ...) are 1-based indices
+                    // into Python's features array, which excludes the token.
+                    // In Python: features = pieces[1:], so features[9] = pieces[10].
+                    // In Java: parts[0] is token, so we need parts[featureIndex + 1] to match.
+                    int adjustedIndex = featureIndex + 1;
+                    if (adjustedIndex < parts.length) {
+                        features[i][k] = parts[adjustedIndex];
+                    } else {
+                        features[i][k] = "0";
+                    }
                 }
             }
         }
@@ -573,7 +567,7 @@ public class OnnxSequenceLabellingModel implements Closeable {
     }
 
     private static String delft2grobidLabel(String label) {
-        if (label.equals(TaggingLabels.IOB_OTHER_LABEL) || label.equals("<PAD>") || label.trim().equals("<PAD>")) {
+        if (label.equals(TaggingLabels.IOB_OTHER_LABEL) || label.trim().equals("<PAD>")) {
             return TaggingLabels.OTHER_LABEL;
         } else if (label.startsWith(TaggingLabels.IOB_START_ENTITY_LABEL_PREFIX)) {
             return label.replace(TaggingLabels.IOB_START_ENTITY_LABEL_PREFIX,

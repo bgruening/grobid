@@ -251,7 +251,7 @@ public class Preprocessor {
                     String featureValue = features[tokenIdx][featIdx];
                     Integer originalColumnIdx = featuresIndices.get(featIdx);
 
-                    // Look up the index for this feature value
+                    // Look up the index for this feature value using the original column vocabulary
                     Map<String, Integer> valueMap = featuresMapToIndex.get(originalColumnIdx);
                     if (valueMap != null && featureValue != null) {
                         result[tokenIdx][featIdx] = valueMap.getOrDefault(featureValue, 0);

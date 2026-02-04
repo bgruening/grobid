@@ -38,11 +38,15 @@ public class Preprocessor {
     private final Map<Integer, Map<String, Integer>> featuresMapToIndex;
     private final boolean hasFeatures;
 
+    // Character encoding support - when false, return all-zero char indices
+    // This matches Python's DataLoader behavior when return_chars=False
+    private final boolean returnChars;
+
     /**
-     * Create preprocessor with vocabularies (no features).
+     * Create preprocessor with vocabularies (no features, with char encoding).
      */
     public Preprocessor(Map<String, Integer> charVocab, Map<Integer, String> tagIndex, int maxCharLength) {
-        this(charVocab, tagIndex, maxCharLength, null, null);
+        this(charVocab, tagIndex, maxCharLength, null, null, true);
     }
 
     /**
@@ -50,6 +54,17 @@ public class Preprocessor {
      */
     public Preprocessor(Map<String, Integer> charVocab, Map<Integer, String> tagIndex, int maxCharLength,
             List<Integer> featuresIndices, Map<Integer, Map<String, Integer>> featuresMapToIndex) {
+        this(charVocab, tagIndex, maxCharLength, featuresIndices, featuresMapToIndex, true);
+    }
+
+    /**
+     * Create preprocessor with all options.
+     * 
+     * @param returnChars If false, tokensToCharIndices returns all zeros (matching
+     *                    Python's return_chars=False)
+     */
+    public Preprocessor(Map<String, Integer> charVocab, Map<Integer, String> tagIndex, int maxCharLength,
+            List<Integer> featuresIndices, Map<Integer, Map<String, Integer>> featuresMapToIndex, boolean returnChars) {
         this.charVocab = charVocab;
         this.tagIndex = tagIndex;
         this.maxCharLength = maxCharLength;
@@ -58,6 +73,7 @@ public class Preprocessor {
         this.featuresIndices = featuresIndices;
         this.featuresMapToIndex = featuresMapToIndex;
         this.hasFeatures = featuresIndices != null && !featuresIndices.isEmpty();
+        this.returnChars = returnChars;
     }
 
     /**
@@ -117,7 +133,15 @@ public class Preprocessor {
                 LOGGER.info("Loaded feature vocabulary with {} feature columns", featuresMapToIndex.size());
             }
 
-            return new Preprocessor(charVocab, tagIndex, maxCharLength, featuresIndices, featuresMapToIndex);
+            // Parse returnChars flag (defaults to true for backward compatibility)
+            boolean returnChars = true;
+            if (json.has("returnChars") && !json.get("returnChars").isJsonNull()) {
+                returnChars = json.get("returnChars").getAsBoolean();
+            }
+            LOGGER.info("Loaded returnChars={}", returnChars);
+
+            return new Preprocessor(charVocab, tagIndex, maxCharLength, featuresIndices, featuresMapToIndex,
+                    returnChars);
         }
     }
 
@@ -144,12 +168,20 @@ public class Preprocessor {
     /**
      * Convert tokens to character indices.
      * 
+     * If returnChars is false, returns all-zero array to match Python's
+     * DataLoader behavior when return_chars=False.
+     * 
      * @param tokens    List of tokens
      * @param seqLength Padded sequence length
      * @return Character indices [seq_len][max_char_length]
      */
     public long[][] tokensToCharIndices(List<LayoutToken> tokens, int seqLength) {
         long[][] charIndices = new long[seqLength][maxCharLength];
+
+        // If returnChars is false, return all-zero array (matches Python's DataLoader)
+        if (!returnChars) {
+            return charIndices;
+        }
 
         for (int i = 0; i < Math.min(tokens.size(), seqLength); i++) {
             String word = tokens.get(i).getText();

@@ -190,6 +190,7 @@
     "5": "O"
   },
   "maxCharLength": 30,
+  "returnChars": false,
   "featuresIndices": [
     9,
     10,

@@ -120,7 +120,7 @@ public class AffiliationAddressParser extends AbstractParser {
     public List<Affiliation> processingLayoutTokens(List<List<LayoutToken>> tokenizations) {
         List<Affiliation> results = null;
         try {
-            if ((tokenizations == null) || (tokenizations.size() == 0)) {
+            if (CollectionUtils.isEmpty(tokenizations)) {
                 return null;
             }
 
@@ -130,8 +130,6 @@ public class AffiliationAddressParser extends AbstractParser {
             }
 
             List<String> affiliationBlocks = getAffiliationBlocksFromSegments(tokenizations);
-
-            //System.out.println(affiliationBlocks.toString());
 
             List<List<OffsetPosition>> placesPositions = new ArrayList<>();
             List<List<OffsetPosition>> countriesPositions = new ArrayList<>();
@@ -472,7 +470,7 @@ public class AffiliationAddressParser extends AbstractParser {
                                 }
                             } else if (s1.equals("I-<institution>")) {
                                 // we have multiple institutions for this affiliation
-                                //aff.addInstitution(aff.institution);
+                                // aff.addInstitution(aff.institution);
                                 aff.addInstitution(s2);
                             } else if (addSpace) {
                                 aff.extendLastInstitution(" " + s2);
@@ -571,12 +569,12 @@ public class AffiliationAddressParser extends AbstractParser {
                             } else if (s1.equals("I-<department>")) {
                                 // we have multiple departments for this affiliation
                                 aff.addDepartment(s2);
-                                //aff.department = s2;
+                                // aff.department = s2;
                             } else if (addSpace) {
-                                //aff.extendFirstDepartment(" " + s2);
+                                // aff.extendFirstDepartment(" " + s2);
                                 aff.extendLastDepartment(" " + s2);
                             } else {
-                                //aff.extendFirstDepartment(s2);
+                                // aff.extendFirstDepartment(s2);
                                 aff.extendLastDepartment(s2);
                             }
                         } else if (aff.getInstitutions() != null) {

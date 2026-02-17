@@ -1,0 +1,4 @@
+Univ	univ	U	Un	Uni	Univ	v	iv	niv	Univ	LINESTART	INITCAP	NODIGIT	0	0	0	0	0	0	NOPUNCT	Xxxx	<affiliation>	I-<institution>
+.	.	.	.	.	.	.	.	.	.	LINEIN	ALLCAPS	NODIGIT	1	0	0	0	0	0	DOT	.	<affiliation>	<institution>
+of	of	o	of	of	of	f	of	of	of	LINEIN	NOCAPS	NODIGIT	0	0	1	0	1	0	NOPUNCT	xx	<affiliation>	<institution>
+Edinburgh	edinburgh	E	Ed	Edi	Edin	h	gh	rgh	urgh	LINEEND	INITCAP	NODIGIT	0	0	0	0	1	0	NOPUNCT	Xxxx	<affiliation>	<institution>

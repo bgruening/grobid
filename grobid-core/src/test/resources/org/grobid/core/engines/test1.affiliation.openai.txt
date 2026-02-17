@@ -1,0 +1,1 @@
+OpenAI	openai	O	Op	Ope	Open	I	AI	nAI	enAI	LINESTART	INITCAP	NODIGIT	0	0	0	0	0	0	NOPUNCT	XxXXX	<affiliation>	I-<institution>

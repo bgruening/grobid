@@ -238,7 +238,11 @@ subprojects {
                 "--add-opens", "java.xml/jdk.xml.internal=ALL-UNNAMED",
                 // PowerMock compatibility with Java 21 - TODO: Replace PowerMock with Mockito/JUnit Jupiter
                 "--add-opens", "java.base/java.lang=ALL-UNNAMED",
-                "--add-opens", "java.base/java.util=ALL-UNNAMED"
+                "--add-opens", "java.base/java.util=ALL-UNNAMED",
+                "--add-opens", "java.base/java.util.stream=ALL-UNNAMED",
+                "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+                "--add-opens", "java.xml/javax.xml.parsers=ALL-UNNAMED",
+                "--add-exports", "java.xml/jdk.xml.internal=ALL-UNNAMED"
         }
 
         systemProperty "java.library.path", "${javaLibraryPath}"

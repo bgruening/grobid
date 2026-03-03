@@ -378,16 +378,9 @@ Processed typed areas are integrated into the standard TEI output:
 
 ## Migration from Legacy ignoreAreas
 
-The new `typedAreas` parameter replaces the legacy `ignoreAreas` parameter:
+The legacy `ignoreAreas` parameter has been **removed**. The `typedAreas` parameter is now the only supported way to define areas for processing.
 
-**Old format (deprecated):**
-```json
-[
-  {"page": 1, "x": 100, "y": 200, "width": 300, "height": 150, "name": "figure"}
-]
-```
-
-**New format (required):**
+**Required format:**
 ```json
 [
   {"page": 1, "x": 100, "y": 200, "width": 300, "height": 150, "type": "figure"},
@@ -395,10 +388,7 @@ The new `typedAreas` parameter replaces the legacy `ignoreAreas` parameter:
 ]
 ```
 
-**Key Changes:**
-- `name` field replaced with required `type` field
-- Support for figure and table processing (not just ignoring)
-- Type-safe area classification with enum validation
+If you were previously using `ignoreAreas`, replace it with `typedAreas` and set `"type": "ignore"` for each area.
 
 ## Troubleshooting
 

@@ -65,9 +65,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
@@ -167,6 +169,9 @@ public class Document implements Serializable {
     protected transient List<LayoutToken> figureTokens = new ArrayList<>();
     protected transient List<LayoutToken> tableTokens = new ArrayList<>();
     protected transient List<LayoutToken> ignoredTokens = new ArrayList<>();
+
+    // tokens that fall within typed areas and should be excluded from body processing
+    protected transient Set<LayoutToken> excludedTokens = Collections.newSetFromMap(new IdentityHashMap<>());
 
     // the analyzer/tokenizer used for processing this document
     protected transient Analyzer analyzer = GrobidAnalyzer.getInstance();
@@ -791,7 +796,13 @@ public class Document implements Serializable {
 
     // helper
     public List<LayoutToken> getDocumentPieceTokenization(DocumentPiece dp) {
-        return tokenizations.subList(dp.getLeft().getTokenDocPos(), dp.getRight().getTokenDocPos() + 1);
+        List<LayoutToken> subList = tokenizations.subList(dp.getLeft().getTokenDocPos(), dp.getRight().getTokenDocPos() + 1);
+        if (!excludedTokens.isEmpty()) {
+            return subList.stream()
+                .filter(t -> !excludedTokens.contains(t))
+                .collect(Collectors.toList());
+        }
+        return subList;
     }
 
     public String getDocumentPieceText(DocumentPiece dp) {
@@ -1766,9 +1777,13 @@ public class Document implements Serializable {
         this.ignoredTokens = ignoredTokens != null ? ignoredTokens : new ArrayList<>();
     }
 
+    public boolean isTokenExcluded(LayoutToken token) {
+        return excludedTokens.contains(token);
+    }
+
     /**
-     * Filters out layout tokens that fall within the specified ignore areas and categorizes them by type.
-     * This replaces the old filterLayoutTokensByIgnoreAreas method to support typed areas.
+     * Filters out layout tokens that fall within the specified typed areas and categorizes them by type.
+     * Tokens in figure/table areas are collected for ML-based processing; tokens in ignore areas are discarded.
      *
      * @param typedAreas list of typed areas for specialized processing
      */
@@ -1806,14 +1821,12 @@ public class Document implements Serializable {
             }
         }
 
-        List<LayoutToken> filteredTokens = new ArrayList<>();
+        excludedTokens.clear();
         int figureTokenCount = 0;
         int tableTokenCount = 0;
         int ignoredTokenCount = 0;
 
         for (LayoutToken token : tokenizations) {
-            boolean tokenProcessed = false;
-
             // Check if token intersects with any typed area
             for (IgnoreArea area : typedAreas) {
                 if (area.contains(token)) {
@@ -1821,52 +1834,24 @@ public class Document implements Serializable {
                         case FIGURE:
                             figureTokens.add(token);
                             figureTokenCount++;
-                            tokenProcessed = true;
                             break;
                         case TABLE:
                             tableTokens.add(token);
                             tableTokenCount++;
-                            tokenProcessed = true;
                             break;
                         case IGNORE:
                             ignoredTokens.add(token);
                             ignoredTokenCount++;
-                            tokenProcessed = true;
                             break;
                     }
-                    if (tokenProcessed) {
-                        break;
-                    }
+                    excludedTokens.add(token);
+                    break;
                 }
             }
-
-            // Keep token only if it wasn't processed by any typed area
-            if (!tokenProcessed) {
-                filteredTokens.add(token);
-            }
         }
 
-        tokenizations = filteredTokens;
-        LOGGER.debug("Processed typed areas: {} figure tokens, {} table tokens, {} ignored tokens, {} main tokens remaining",
-                    figureTokenCount, tableTokenCount, ignoredTokenCount, tokenizations.size());
+        LOGGER.debug("Processed typed areas: {} figure tokens, {} table tokens, {} ignored tokens, {} excluded total",
+                    figureTokenCount, tableTokenCount, ignoredTokenCount, excludedTokens.size());
     }
 
-    /**
-     * Legacy method for backward compatibility.
-     * @deprecated Use {@link #filterLayoutTokensByTypedAreas(List)} instead.
-     */
-    @Deprecated
-    public void filterLayoutTokensByIgnoreAreas(List<IgnoreArea> ignoreAreas) {
-        // Convert all ignore areas to IGNORE type and use new method
-        List<IgnoreArea> typedAreas = new ArrayList<>();
-        if (ignoreAreas != null) {
-            for (IgnoreArea area : ignoreAreas) {
-                // Create a new area with IGNORE type
-                IgnoreArea ignoreArea = new IgnoreArea(area.getPage(), area.getX(), area.getY(),
-                                                      area.getWidth(), area.getHeight(), AreaType.IGNORE);
-                typedAreas.add(ignoreArea);
-            }
-        }
-        filterLayoutTokensByTypedAreas(typedAreas);
-    }
 }

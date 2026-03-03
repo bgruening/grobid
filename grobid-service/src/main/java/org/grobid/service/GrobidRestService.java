@@ -382,17 +382,17 @@ public class GrobidRestService implements GrobidPaths {
         return teiCoordinates;
     }
 
-    private List<org.grobid.core.layout.IgnoreArea> parseTypedAreas(String ignoreAreasJson) {
+    private List<org.grobid.core.layout.IgnoreArea> parseTypedAreas(String typedAreasJson) {
         List<org.grobid.core.layout.IgnoreArea> typedAreasList = new ArrayList<>();
 
-        if (ignoreAreasJson == null || ignoreAreasJson.trim().isEmpty()) {
+        if (typedAreasJson == null || typedAreasJson.trim().isEmpty()) {
             return typedAreasList;
         }
 
         try {
             // Parse JSON array of typed areas
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(ignoreAreasJson);
+            JsonNode rootNode = mapper.readTree(typedAreasJson);
 
             if (rootNode.isArray()) {
                 for (JsonNode node : rootNode) {
@@ -421,60 +421,16 @@ public class GrobidRestService implements GrobidPaths {
                     }
                 }
             } else {
-                LOGGER.warn("typedAreas should be a JSON array, but received: " + ignoreAreasJson);
+                LOGGER.warn("typedAreas should be a JSON array, but received: " + typedAreasJson);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to parse typed areas JSON: " + ignoreAreasJson, e);
+            LOGGER.error("Failed to parse typed areas JSON: " + typedAreasJson, e);
         }
 
         return typedAreasList;
     }
 
-    /**
-     * Legacy method for backward compatibility.
-     * @deprecated Use {@link #parseTypedAreas(String)} instead.
-     */
-    @Deprecated
-    private List<org.grobid.core.layout.IgnoreArea> parseIgnoreAreas(String ignoreAreasJson) {
-        // Convert legacy ignore areas to typed areas with IGNORE type
-        List<org.grobid.core.layout.IgnoreArea> typedAreasList = new ArrayList<>();
 
-        if (ignoreAreasJson == null || ignoreAreasJson.trim().isEmpty()) {
-            return typedAreasList;
-        }
-
-        try {
-            // Parse JSON array of ignore areas
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(ignoreAreasJson);
-
-            if (rootNode.isArray()) {
-                for (JsonNode node : rootNode) {
-                    try {
-                        int page = node.get("page").asInt();
-                        double x = node.get("x").asDouble();
-                        double y = node.get("y").asDouble();
-                        double width = node.get("width").asDouble();
-                        double height = node.get("height").asDouble();
-                        // Legacy name field is ignored, all areas are treated as IGNORE type
-
-                        org.grobid.core.layout.IgnoreArea area =
-                            new org.grobid.core.layout.IgnoreArea(page, x, y, width, height,
-                                org.grobid.core.layout.AreaType.IGNORE);
-                        typedAreasList.add(area);
-                    } catch (Exception e) {
-                        LOGGER.warn("Failed to parse ignore area from JSON: " + node.toString(), e);
-                    }
-                }
-            } else {
-                LOGGER.warn("typedAreas should be a JSON array, but received: " + ignoreAreasJson);
-            }
-        } catch (Exception e) {
-            LOGGER.error("Failed to parse ignore areas JSON: " + ignoreAreasJson, e);
-        }
-
-        return typedAreasList;
-    }
 
     private boolean validateGenerateIdParam(String generateIDs) {
         boolean generate = false;

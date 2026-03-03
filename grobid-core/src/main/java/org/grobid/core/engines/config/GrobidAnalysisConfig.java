@@ -96,9 +96,6 @@ public class GrobidAnalysisConfig {
     // if true, the TEI text will be segmented into sentences
     private boolean withSentenceSegmentation = false;
 
-    // list of areas to ignore during processing (legacy)
-    private List<IgnoreArea> ignoreAreas = null;
-
     // list of typed areas for specialized processing
     private List<IgnoreArea> typedAreas = null;
 
@@ -220,11 +217,6 @@ public class GrobidAnalysisConfig {
             if (a != null) {
                 config.flavor = a.getLabel();
             }
-            return this;
-        }
-
-        public GrobidAnalysisConfigBuilder ignoreAreas(List<IgnoreArea> areas) {
-            config.ignoreAreas = areas;
             return this;
         }
 
@@ -358,10 +350,6 @@ public class GrobidAnalysisConfig {
 
     public String getFlavor() {
         return flavor;
-    }
-
-    public List<IgnoreArea> getIgnoreAreas() {
-        return ignoreAreas;
     }
 
     public List<IgnoreArea> getTypedAreas() {

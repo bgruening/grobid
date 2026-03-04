@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -169,6 +170,7 @@ public class Document implements Serializable {
     // tokens extracted from typed areas for specialized processing
     protected transient List<LayoutToken> figureTokens = new ArrayList<>();
     protected transient List<LayoutToken> tableTokens = new ArrayList<>();
+    protected transient Map<IgnoreArea, List<LayoutToken>> tableTokensByArea = new LinkedHashMap<>();
     protected transient List<LayoutToken> ignoredTokens = new ArrayList<>();
 
     // tokens that fall within typed areas and should be excluded from body processing
@@ -1764,6 +1766,10 @@ public class Document implements Serializable {
         this.tableTokens = tableTokens != null ? tableTokens : new ArrayList<>();
     }
 
+    public Map<IgnoreArea, List<LayoutToken>> getTableTokensByArea() {
+        return tableTokensByArea;
+    }
+
     public List<LayoutToken> getIgnoredTokens() {
         return ignoredTokens;
     }
@@ -1831,6 +1837,7 @@ public class Document implements Serializable {
         // Clear previous token lists
         figureTokens.clear();
         tableTokens.clear();
+        tableTokensByArea.clear();
         ignoredTokens.clear();
         figureAreas.clear();
         tableAreas.clear();
@@ -1871,6 +1878,7 @@ public class Document implements Serializable {
                             break;
                         case TABLE:
                             tableTokens.add(token);
+                            tableTokensByArea.computeIfAbsent(area, k -> new ArrayList<>()).add(token);
                             tableTokenCount++;
                             break;
                         case IGNORE:

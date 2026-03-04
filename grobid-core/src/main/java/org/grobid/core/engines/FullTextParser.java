@@ -347,6 +347,10 @@ public class FullTextParser extends AbstractParser {
                 LOGGER.debug("Fulltext model: The featured body is empty");
             }
 
+            // Save typed area tables before annex processing (which overwrites doc.annexTables)
+            List<Table> typedAreaTables = doc.getAnnexTables() != null
+                ? new ArrayList<>(doc.getAnnexTables()) : new ArrayList<>();
+
             // possible annexes (view as a piece of full text similar to the body)
             documentBodyParts = doc.getDocumentPart(SegmentationLabels.ANNEX);
             featSeg = getBodyTextFeatured(doc, documentBodyParts);
@@ -419,6 +423,15 @@ public class FullTextParser extends AbstractParser {
                     CollectionUtils.size(bodyEquations)
                 );
                 doc.setAnnexEquations(annexEquations);
+            }
+
+            // Merge typed area tables back (they were overwritten by annex processing)
+            if (!typedAreaTables.isEmpty()) {
+                if (annexTables == null) {
+                    annexTables = new ArrayList<>();
+                }
+                annexTables.addAll(typedAreaTables);
+                doc.setAnnexTables(annexTables);
             }
 
             // post-process reference and footnote callout to keep them consistent (e.g. for example avoid that a footnote
@@ -3988,49 +4001,61 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
             LOGGER.debug("Created figure from typed areas via ML processing");
         }
 
-        // Process table areas using the table ML model
-        if (!doc.getTableAreas().isEmpty() && !doc.getTableTokens().isEmpty()) {
+        // Process table areas using the table ML model - each area separately
+        if (!doc.getTableAreas().isEmpty() && !doc.getTableTokensByArea().isEmpty()) {
             if (doc.getAnnexTables() == null) {
                 doc.setAnnexTables(new ArrayList<>());
             }
 
-            List<Table> tables = null;
-            try {
-                Pair<String, List<LayoutToken>> featurePair =
-                    generateFeaturesForTokens(doc.getTableTokens(), doc);
-                if (featurePair != null && isNotBlank(featurePair.getLeft())) {
-                    tables = parsers.getTableParser().processing(
-                        featurePair.getRight(), featurePair.getLeft());
+            for (Map.Entry<IgnoreArea, List<LayoutToken>> entry : doc.getTableTokensByArea().entrySet()) {
+                IgnoreArea area = entry.getKey();
+                List<LayoutToken> areaTokens = entry.getValue();
+                if (areaTokens.isEmpty()) {
+                    continue;
                 }
-            } catch (Exception e) {
-                LOGGER.warn("Table ML processing failed, falling back to direct construction", e);
-            }
 
-            if (CollectionUtils.isNotEmpty(tables)) {
-                for (Table table : tables) {
-                    table.setLayoutTokens(doc.getTableTokens());
-                    for (LayoutToken lt : doc.getTableTokens()) {
+                List<Table> tables = null;
+                try {
+                    Pair<String, List<LayoutToken>> featurePair =
+                        generateFeaturesForTokens(areaTokens, doc);
+                    if (featurePair != null && isNotBlank(featurePair.getLeft())) {
+                        tables = parsers.getTableParser().processing(
+                            featurePair.getRight(), featurePair.getLeft());
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("Table ML processing failed for area {}, falling back to direct construction", area, e);
+                }
+
+                if (CollectionUtils.isNotEmpty(tables)) {
+                    for (Table table : tables) {
+                        for (LayoutToken lt : areaTokens) {
+                            if (!LayoutTokensUtil.spaceyToken(lt.t()) && !LayoutTokensUtil.newLineToken(lt.t())) {
+                                table.setPage(lt.getPage());
+                                break;
+                            }
+                        }
+                        LOGGER.info("Typed area table from {}: hasContent={}, tokenCount={}",
+                            area, table.getContent() != null && table.getContent().length() > 0,
+                            table.getLayoutTokens() != null ? table.getLayoutTokens().size() : 0);
+                        doc.getAnnexTables().add(table);
+                    }
+                } else {
+                    // Fallback: create Table directly from tokens
+                    Table table = new Table();
+                    table.setLayoutTokens(areaTokens);
+                    table.setContent(new StringBuilder(LayoutTokensUtil.toText(areaTokens)));
+                    for (LayoutToken lt : areaTokens) {
                         if (!LayoutTokensUtil.spaceyToken(lt.t()) && !LayoutTokensUtil.newLineToken(lt.t())) {
                             table.setPage(lt.getPage());
                             break;
                         }
                     }
+                    LOGGER.info("Typed area table (fallback) from {}: tokenCount={}", area, areaTokens.size());
                     doc.getAnnexTables().add(table);
                 }
-            } else {
-                // Fallback: create Table directly from tokens
-                Table table = new Table();
-                table.setLayoutTokens(doc.getTableTokens());
-                table.setContent(new StringBuilder(LayoutTokensUtil.toText(doc.getTableTokens())));
-                for (LayoutToken lt : doc.getTableTokens()) {
-                    if (!LayoutTokensUtil.spaceyToken(lt.t()) && !LayoutTokensUtil.newLineToken(lt.t())) {
-                        table.setPage(lt.getPage());
-                        break;
-                    }
-                }
-                doc.getAnnexTables().add(table);
             }
-            LOGGER.debug("Created table(s) from typed areas via ML processing");
+            LOGGER.info("Created {} table(s) from {} typed areas",
+                doc.getAnnexTables().size(), doc.getTableTokensByArea().size());
         }
 
         // Note: ignored areas are intentionally discarded and no further processing is performed

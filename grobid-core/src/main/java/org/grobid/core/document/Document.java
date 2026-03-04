@@ -71,6 +71,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
@@ -796,13 +797,7 @@ public class Document implements Serializable {
 
     // helper
     public List<LayoutToken> getDocumentPieceTokenization(DocumentPiece dp) {
-        List<LayoutToken> subList = tokenizations.subList(dp.getLeft().getTokenDocPos(), dp.getRight().getTokenDocPos() + 1);
-        if (!excludedTokens.isEmpty()) {
-            return subList.stream()
-                .filter(t -> !excludedTokens.contains(t))
-                .collect(Collectors.toList());
-        }
-        return subList;
+        return tokenizations.subList(dp.getLeft().getTokenDocPos(), dp.getRight().getTokenDocPos() + 1);
     }
 
     public String getDocumentPieceText(DocumentPiece dp) {
@@ -1777,8 +1772,47 @@ public class Document implements Serializable {
         this.ignoredTokens = ignoredTokens != null ? ignoredTokens : new ArrayList<>();
     }
 
-    public boolean isTokenExcluded(LayoutToken token) {
+    private boolean isTokenExcluded(LayoutToken token) {
         return excludedTokens.contains(token);
+    }
+
+    /**
+     * Filters document pieces by splitting them around excluded token runs.
+     * Returns new pieces that skip over any tokens in the excludedTokens set.
+     */
+    public SortedSet<DocumentPiece> filterDocumentPiecesByExcludedTokens(SortedSet<DocumentPiece> pieces) {
+        if (excludedTokens.isEmpty() || pieces == null || pieces.isEmpty()) {
+            return pieces;
+        }
+        SortedSet<DocumentPiece> filtered = new TreeSet<>();
+        for (DocumentPiece piece : pieces) {
+            int startPos = piece.getLeft().getTokenDocPos();
+            int endPos = piece.getRight().getTokenDocPos();
+            int runStart = -1;
+            for (int i = startPos; i <= endPos; i++) {
+                LayoutToken token = tokenizations.get(i);
+                if (!excludedTokens.contains(token)) {
+                    if (runStart == -1) runStart = i;
+                } else {
+                    if (runStart != -1) {
+                        filtered.add(createPiece(runStart, i - 1));
+                        runStart = -1;
+                    }
+                }
+            }
+            if (runStart != -1) {
+                filtered.add(createPiece(runStart, endPos));
+            }
+        }
+        return filtered;
+    }
+
+    private DocumentPiece createPiece(int startTokenDocPos, int endTokenDocPos) {
+        int startBlock = tokenizations.get(startTokenDocPos).getBlockPtr();
+        int endBlock = tokenizations.get(endTokenDocPos).getBlockPtr();
+        return new DocumentPiece(
+            new DocumentPointer(this, startBlock, startTokenDocPos),
+            new DocumentPointer(this, endBlock, endTokenDocPos));
     }
 
     /**
@@ -1850,8 +1884,28 @@ public class Document implements Serializable {
             }
         }
 
+        recalculateBlockPointers();
+
         LOGGER.debug("Processed typed areas: {} figure tokens, {} table tokens, {} ignored tokens, {} excluded total",
                     figureTokenCount, tableTokenCount, ignoredTokenCount, excludedTokens.size());
     }
 
+    /**
+     * Recalculate blockPtr for all tokens based on the current blocks list.
+     * Ensures that each token's blockPtr correctly points to the block
+     * whose startToken <= tokenDocPos < nextBlock.startToken.
+     */
+    private void recalculateBlockPointers() {
+        if (blocks == null || blocks.isEmpty() || tokenizations == null || tokenizations.isEmpty()) {
+            return;
+        }
+        int blockIdx = 0;
+        for (int i = 0; i < tokenizations.size(); i++) {
+            while (blockIdx < blocks.size() - 1
+                    && blocks.get(blockIdx + 1).getStartToken() <= i) {
+                blockIdx++;
+            }
+            tokenizations.get(i).setBlockPtr(blockIdx);
+        }
+    }
 }

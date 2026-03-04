@@ -15,6 +15,7 @@ import org.grobid.core.engines.Engine;
 import org.grobid.core.engines.config.GrobidAnalysisConfig;
 import org.grobid.core.factory.AbstractEngineFactory;
 import org.grobid.core.factory.GrobidPoolingFactory;
+import org.grobid.core.layout.AreaType;
 import org.grobid.core.utilities.GrobidProperties;
 import org.grobid.service.data.ServiceInfo;
 import org.grobid.service.process.GrobidRestProcessFiles;
@@ -34,6 +35,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 import static org.grobid.core.GrobidModels.Flavor.BLANK;
@@ -425,6 +427,14 @@ public class GrobidRestService implements GrobidPaths {
             }
         } catch (Exception e) {
             LOGGER.error("Failed to parse typed areas JSON: " + typedAreasJson, e);
+        }
+
+        if (!typedAreasList.isEmpty()) {
+            Map<AreaType, Long> countsByType = typedAreasList.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                    org.grobid.core.layout.IgnoreArea::getType,
+                    java.util.stream.Collectors.counting()));
+            LOGGER.info("Received {} typed areas: {}", typedAreasList.size(), countsByType);
         }
 
         return typedAreasList;

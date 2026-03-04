@@ -148,135 +148,25 @@ curl -v -H "Accept: application/xml" \
   localhost:8070/api/processFulltextDocument
 ```
 
-### Python Examples
+### Using a JSON File
 
-**Using requests library:**
-```python
-import requests
-import json
+For complex area definitions, store them in a JSON file and pass it to curl:
 
-# Define typed areas
-typed_areas = [
-    {"page": 1, "x": 100, "y": 200, "width": 300, "height": 150, "type": "figure"},
-    {"page": 1, "x": 450, "y": 200, "width": 250, "height": 200, "type": "table"},
-    {"page": 1, "x": 50, "y": 750, "width": 500, "height": 30, "type": "ignore"}
+**Create `typed_areas.json`:**
+```json
+[
+  {"page": 1, "x": 100, "y": 200, "width": 300, "height": 150, "type": "figure"},
+  {"page": 1, "x": 450, "y": 200, "width": 250, "height": 200, "type": "table"},
+  {"page": 1, "x": 50, "y": 750, "width": 500, "height": 30, "type": "ignore"}
 ]
-
-# Process document
-with open('document.pdf', 'rb') as f:
-    files = {'input': f}
-    data = {
-        'typedAreas': json.dumps(typed_areas),
-        'consolidateHeader': '1',
-        'segmentSentences': '1'
-    }
-
-    response = requests.post(
-        'http://localhost:8070/api/processFulltextDocument',
-        files=files,
-        data=data,
-        headers={'Accept': 'application/xml'}
-    )
-
-    if response.status_code == 200:
-        print(response.text)
-    else:
-        print(f"Error: {response.status_code} - {response.text}")
 ```
 
-**Complex processing with multiple parameters:**
-```python
-import requests
-import json
-
-def process_with_typed_areas(pdf_path, typed_areas, endpoint="processFulltextDocument"):
-    """Process a PDF with typed areas and additional parameters."""
-
-    url = f"http://localhost:8070/api/{endpoint}"
-
-    with open(pdf_path, 'rb') as f:
-        files = {'input': f}
-        data = {
-            'typedAreas': json.dumps(typed_areas),
-            'consolidateHeader': '1',
-            'consolidateCitations': '1',
-            'segmentSentences': '1',
-            'generateIDs': '1',
-            'includeRawCitations': '1'
-        }
-
-        response = requests.post(
-            url,
-            files=files,
-            data=data,
-            headers={'Accept': 'application/xml'}
-        )
-
-        return response
-
-# Example usage
-figure_areas = [
-    {"page": 1, "x": 85, "y": 120, "width": 440, "height": 280, "type": "figure"},
-    {"page": 2, "x": 85, "y": 200, "width": 300, "height": 200, "type": "table"}
-]
-
-response = process_with_typed_areas("research_paper.pdf", figure_areas)
-print(response.status_code)
-```
-
-### JavaScript Examples
-
-**Using fetch API:**
-```javascript
-async function processWithTypedAreas(pdfFile, typedAreas) {
-    const formData = new FormData();
-    formData.append('input', pdfFile);
-    formData.append('typedAreas', JSON.stringify(typedAreas));
-    formData.append('consolidateHeader', '1');
-    formData.append('segmentSentences', '1');
-
-    try {
-        const response = await fetch(
-            'http://localhost:8070/api/processFulltextDocument',
-            {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': 'application/xml'
-                }
-            }
-        );
-
-        if (response.ok) {
-            const result = await response.text();
-            return result;
-        } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-    } catch (error) {
-        console.error('Error processing document:', error);
-        throw error;
-    }
-}
-
-// Usage example
-const typedAreas = [
-    {page: 1, x: 100, y: 200, width: 300, height: 150, type: "figure"},
-    {page: 1, x: 450, y: 200, width: 250, height: 200, type: "table"}
-];
-
-const fileInput = document.getElementById('pdf-input');
-fileInput.addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-        try {
-            const result = await processWithTypedAreas(file, typedAreas);
-            console.log('Processing result:', result);
-        } catch (error) {
-            console.error('Processing failed:', error);
-        }
-    }
-});
+**Pass the file content as the form field value:**
+```bash
+curl -v -H "Accept: application/xml" \
+  --form input=@./document.pdf \
+  --form "typedAreas=$(cat typed_areas.json)" \
+  localhost:8070/api/processFulltextDocument
 ```
 
 ## Error Handling

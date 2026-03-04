@@ -164,6 +164,8 @@ public class FullTextParser extends AbstractParser {
             }
 
             SortedSet<DocumentPiece> documentBodyParts = doc.getDocumentPart(SegmentationLabels.BODY);
+            // Filter body pieces to exclude typed area regions
+            documentBodyParts = doc.filterDocumentPiecesByExcludedTokens(documentBodyParts);
 
             // header processing
             BiblioItem headerResults = new BiblioItem();
@@ -495,7 +497,7 @@ public class FullTextParser extends AbstractParser {
     }
 
     private static String fixFiguresLabellingResults(Document doc, String bodyResults) {
-        List<Triple<Figure, Figure, List<List<LayoutToken>>>> updatedFigures = doc. assignGraphicObjectsToFigures();
+        List<Triple<Figure, Figure, List<List<LayoutToken>>>> updatedFigures = doc.assignGraphicObjectsToFigures();
         for(Triple<Figure, Figure, List<List<LayoutToken>>> update: updatedFigures) {
             List<List<LayoutToken>> difference = update.getRight();
 
@@ -1082,12 +1084,6 @@ public class FullTextParser extends AbstractParser {
                     }
 
                     LayoutToken token = tokens.get(n);
-
-                    // Skip tokens that fall within typed areas (figure, table, ignore)
-                    if (doc.isTokenExcluded(token)) {
-                        n++;
-                        continue;
-                    }
 
                     layoutTokens.add(token);
 

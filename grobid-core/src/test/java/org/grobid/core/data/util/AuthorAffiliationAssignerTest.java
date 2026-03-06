@@ -338,6 +338,149 @@ public class AuthorAffiliationAssignerTest {
         assertThat(a2.getAffiliations().get(0).getRawAffiliationString(), is("Stanford"));
     }
 
+    // --- Marker matching edge cases ---
+
+    @Test
+    public void testMarkerMatching_authorNameNotInOriginalString() {
+        // Author name model returns a different form than what appears in the raw string.
+        // The marker search should skip authors whose name isn't found rather than
+        // producing a bogus match from a -1 indexOf result.
+        Person a1 = person("Smith");
+        Person a2 = person("Van der Berg"); // won't appear verbatim in originalAuthors
+        List<Person> authors = Arrays.asList(a1, a2);
+
+        Affiliation aff1 = affiliation("MIT");
+        aff1.setMarker("1");
+        Affiliation aff2 = affiliation("Stanford");
+        aff2.setMarker("2");
+        List<Affiliation> affs = Arrays.asList(aff1, aff2);
+
+        // originalAuthors has "Berg" but not "Van der Berg"
+        String originalAuthors = "Smith 1, Berg 2";
+
+        AuthorAffiliationAssigner.assign(authors, affs, originalAuthors);
+
+        // Smith should get MIT via marker "1"
+        assertThat(a1.getAffiliations(), hasSize(1));
+        assertThat(a1.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+    }
+
+    // --- Direct marker matching tests (Person.getMarkers() vs Affiliation.getMarker()) ---
+
+    @Test
+    public void testDirectMarkerMatching_simple() {
+        Person a1 = person("Smith");
+        a1.setMarkers(Arrays.asList("1"));
+        Person a2 = person("Jones");
+        a2.setMarkers(Arrays.asList("2"));
+        List<Person> authors = Arrays.asList(a1, a2);
+
+        Affiliation aff1 = affiliation("MIT");
+        aff1.setMarker("1");
+        Affiliation aff2 = affiliation("Stanford");
+        aff2.setMarker("2");
+        List<Affiliation> affs = Arrays.asList(aff1, aff2);
+
+        AuthorAffiliationAssigner.assign(authors, affs, null);
+
+        assertThat(a1.getAffiliations(), hasSize(1));
+        assertThat(a1.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+        assertThat(a2.getAffiliations(), hasSize(1));
+        assertThat(a2.getAffiliations().get(0).getRawAffiliationString(), is("Stanford"));
+    }
+
+    @Test
+    public void testDirectMarkerMatching_multipleMarkersPerAuthor() {
+        Person a1 = person("Smith");
+        a1.setMarkers(Arrays.asList("1", "2"));
+        List<Person> authors = Arrays.asList(a1);
+
+        Affiliation aff1 = affiliation("MIT");
+        aff1.setMarker("1");
+        Affiliation aff2 = affiliation("Stanford");
+        aff2.setMarker("2");
+        List<Affiliation> affs = Arrays.asList(aff1, aff2);
+
+        AuthorAffiliationAssigner.assign(authors, affs, null);
+
+        assertThat(a1.getAffiliations(), hasSize(2));
+        assertThat(a1.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+        assertThat(a1.getAffiliations().get(1).getRawAffiliationString(), is("Stanford"));
+    }
+
+    @Test
+    public void testDirectMarkerMatching_sharedMarker() {
+        Person a1 = person("Smith");
+        a1.setMarkers(Arrays.asList("1"));
+        Person a2 = person("Jones");
+        a2.setMarkers(Arrays.asList("1"));
+        List<Person> authors = Arrays.asList(a1, a2);
+
+        Affiliation aff1 = affiliation("MIT");
+        aff1.setMarker("1");
+        Affiliation aff2 = affiliation("Stanford");
+        aff2.setMarker("2");
+        List<Affiliation> affs = Arrays.asList(aff1, aff2);
+
+        AuthorAffiliationAssigner.assign(authors, affs, null);
+
+        // Both authors share marker "1" → both get MIT
+        assertThat(a1.getAffiliations(), hasSize(1));
+        assertThat(a1.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+        assertThat(a2.getAffiliations(), hasSize(1));
+        assertThat(a2.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+    }
+
+    @Test
+    public void testDirectMarkerMatching_fallsBackToStringSearch() {
+        // Author A has person markers → matched by direct markers
+        // Author B has no person markers → matched by string-search fallback
+        Person a1 = person("Smith");
+        a1.setMarkers(Arrays.asList("1"));
+        Person a2 = person("Jones");
+        // no markers set on a2
+        List<Person> authors = Arrays.asList(a1, a2);
+
+        Affiliation aff1 = affiliation("MIT");
+        aff1.setMarker("1");
+        Affiliation aff2 = affiliation("Stanford");
+        aff2.setMarker("2");
+        List<Affiliation> affs = Arrays.asList(aff1, aff2);
+
+        String originalAuthors = "Smith 1, Jones 2";
+
+        AuthorAffiliationAssigner.assign(authors, affs, originalAuthors);
+
+        // Smith gets MIT via direct markers
+        assertThat(a1.getAffiliations(), hasSize(1));
+        assertThat(a1.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+        // Jones gets Stanford via string-search fallback
+        assertThat(a2.getAffiliations(), hasSize(1));
+        assertThat(a2.getAffiliations().get(0).getRawAffiliationString(), is("Stanford"));
+    }
+
+    @Test
+    public void testDirectMarkerMatching_noPersonMarkers() {
+        // No person markers set → direct marker matching is a no-op,
+        // string-search handles everything
+        List<Person> authors = authors("Smith", "Jones");
+
+        Affiliation aff1 = affiliation("MIT");
+        aff1.setMarker("1");
+        Affiliation aff2 = affiliation("Stanford");
+        aff2.setMarker("2");
+        List<Affiliation> affs = Arrays.asList(aff1, aff2);
+
+        String originalAuthors = "Smith 1, Jones 2";
+
+        AuthorAffiliationAssigner.assign(authors, affs, originalAuthors);
+
+        assertThat(authors.get(0).getAffiliations(), hasSize(1));
+        assertThat(authors.get(0).getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+        assertThat(authors.get(1).getAffiliations(), hasSize(1));
+        assertThat(authors.get(1).getAffiliations().get(0).getRawAffiliationString(), is("Stanford"));
+    }
+
     // --- Null / empty tests ---
 
     @Test

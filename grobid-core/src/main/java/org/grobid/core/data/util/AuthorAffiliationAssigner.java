@@ -15,11 +15,11 @@ import java.util.*;
  * Assigns affiliations to authors using a priority-based strategy:
  * <ol>
  * <li>Distribution — trivial single-author or single-affiliation cases</li>
- * <li>Marker matching — searches for affiliation markers in the original author
- * string and finds the nearest author by string position (robust to name model
- * errors)</li>
- * <li>Proximity matching — coordinate distance between layout tokens (primary
- * fallback)</li>
+ * <li>Direct marker matching — matches structured Person.getMarkers() against
+ * Affiliation.getMarker()</li>
+ * <li>String-search marker matching — searches for affiliation markers in the
+ * original author string (fallback for when name model misses markers)</li>
+ * <li>Proximity matching — coordinate distance between layout tokens</li>
  * <li>Sequential fallback — last resort when no coordinates available</li>
  * </ol>
  */
@@ -72,16 +72,66 @@ public class AuthorAffiliationAssigner {
             return;
         }
 
-        // 2. Marker matching (string-search approach from master — robust to name model
-        // errors)
+        // 2. Direct marker matching (Person.getMarkers() vs Affiliation.getMarker())
+        assignByDirectMarkers(authors, affiliations);
+
+        // 3. Marker matching (string-search approach — robust to name model errors)
         assignByMarkers(authors, affiliations, originalAuthors);
 
-        // 3. Proximity matching (primary fallback for authors still without
+        // 4. Proximity matching (primary fallback for authors still without
         // affiliations)
         assignByProximity(authors, affiliations);
 
-        // 4. Sequential fallback (last resort when no coordinates available)
+        // 5. Sequential fallback (last resort when no coordinates available)
         assignBySequence(authors, affiliations);
+    }
+
+    /**
+     * Match authors to affiliations using structured markers extracted by the
+     * name model ({@link Person#getMarkers()}) against {@link Affiliation#getMarker()}.
+     * <p>
+     * Multiple authors can share the same marker, and a single author can have
+     * multiple markers. Markers are trimmed before comparison.
+     */
+    static void assignByDirectMarkers(List<Person> authors, List<Affiliation> affiliations) {
+        // Build marker → affiliations index
+        Map<String, List<Affiliation>> markerToAffs = new HashMap<>();
+        for (Affiliation aff : affiliations) {
+            if (StringUtils.isNotBlank(aff.getMarker())) {
+                markerToAffs.computeIfAbsent(aff.getMarker().trim(), k -> new ArrayList<>()).add(aff);
+            }
+        }
+
+        if (markerToAffs.isEmpty()) {
+            LOGGER.debug("Direct marker matching: no affiliation markers, skipping");
+            return;
+        }
+
+        boolean anyMatched = false;
+        for (Person aut : authors) {
+            if (CollectionUtils.isEmpty(aut.getMarkers())) {
+                continue;
+            }
+            for (String marker : aut.getMarkers()) {
+                if (StringUtils.isBlank(marker)) {
+                    continue;
+                }
+                List<Affiliation> matched = markerToAffs.get(marker.trim());
+                if (matched != null) {
+                    for (Affiliation aff : matched) {
+                        aut.addAffiliation(aff);
+                        aff.setFailAffiliation(false);
+                        anyMatched = true;
+                        LOGGER.debug("Direct marker matching: author '{}' matched to affiliation '{}' via marker '{}'",
+                                aut.getLastName(), aff.getRawAffiliationString(), marker);
+                    }
+                }
+            }
+        }
+
+        if (!anyMatched) {
+            LOGGER.debug("Direct marker matching: no person markers matched any affiliation markers");
+        }
     }
 
     /**
@@ -117,6 +167,12 @@ public class AuthorAffiliationAssigner {
             // circuit breaker
             if (indexAffiliation > 60)
                 break;
+
+            // skip affiliations already resolved by direct marker matching
+            if (!aff.getFailAffiliation()) {
+                indexAffiliation++;
+                continue;
+            }
 
             if (aff.getMarker() != null && aff.getMarker().length() > 0) {
                 String marker = aff.getMarker();
@@ -196,19 +252,20 @@ public class AuthorAffiliationAssigner {
                         String original = originalAuthors.toLowerCase();
                         int p = 0;
                         int best = -1;
-                        int ind2 = -1;
-                        int bestDistance = 1000;
+                        int bestDistance = Integer.MAX_VALUE;
                         for (Person aut : authors) {
                             if (!winners.contains(Integer.valueOf(p))) {
                                 String lastname = aut.getLastName();
 
                                 if (lastname != null) {
                                     lastname = lastname.toLowerCase();
-                                    ind2 = original.indexOf(lastname, ind2 + 1);
-                                    int dist = Math.abs(ind - (ind2 + lastname.length()));
-                                    if (dist < bestDistance) {
-                                        best = p;
-                                        bestDistance = dist;
+                                    int namePos = original.indexOf(lastname);
+                                    if (namePos != -1) {
+                                        int dist = Math.abs(ind - (namePos + lastname.length()));
+                                        if (dist < bestDistance) {
+                                            best = p;
+                                            bestDistance = dist;
+                                        }
                                     }
                                 }
                             }
@@ -248,7 +305,6 @@ public class AuthorAffiliationAssigner {
      */
     static void assignByProximity(List<Person> authors, List<Affiliation> affiliations) {
         List<Person> floatingAuthors = getFloatingAuthors(authors);
-        List<Affiliation> allAffiliations = affiliations; // consider all affiliations, not just floating
 
         if (floatingAuthors.isEmpty()) {
             LOGGER.debug("Proximity matching: no floating authors, skipping");
@@ -264,9 +320,9 @@ public class AuthorAffiliationAssigner {
             }
         }
 
-        // compute centroids for all affiliations (only those with layout tokens)
+        // compute centroids for all affiliations (not just floating — multiple authors can share)
         Map<Affiliation, double[]> affCentroids = new LinkedHashMap<>();
-        for (Affiliation aff : allAffiliations) {
+        for (Affiliation aff : affiliations) {
             double[] centroid = computeCentroid(aff.getLayoutTokens());
             if (centroid != null) {
                 affCentroids.put(aff, centroid);

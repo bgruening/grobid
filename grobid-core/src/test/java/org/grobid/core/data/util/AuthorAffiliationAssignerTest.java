@@ -177,7 +177,9 @@ public class AuthorAffiliationAssignerTest {
 
     @Test
     public void testProximity_sharedAffiliation() {
-        // Two authors close to same affiliation → both should get it
+        // Two authors close to same affiliation, one distant affiliation.
+        // Proximity assigns both to OpenAI, then orphan rescue assigns
+        // Stanford to the nearest author (Edwards at y=70 is closer to y=500).
         Person a1 = person("Burda");
         a1.setLayoutTokens(tokensAt(100, 50, 1));
         Person a2 = person("Edwards");
@@ -192,11 +194,14 @@ public class AuthorAffiliationAssignerTest {
 
         AuthorAffiliationAssigner.assign(authors, affs, null);
 
-        // Both authors should be nearest to OpenAI (y=60), not Stanford (y=500)
+        // Both get OpenAI via proximity, Stanford is rescued to nearest author
         assertThat(a1.getAffiliations(), hasSize(1));
         assertThat(a1.getAffiliations().get(0).getRawAffiliationString(), is("OpenAI"));
-        assertThat(a2.getAffiliations(), hasSize(1));
-        assertThat(a2.getAffiliations().get(0).getRawAffiliationString(), is("OpenAI"));
+        // Edwards gets OpenAI + rescued Stanford
+        assertThat(a2.getAffiliations(), hasSize(2));
+        // No affiliation should be orphaned
+        assertFalse(aff1.getFailAffiliation());
+        assertFalse(aff2.getFailAffiliation());
     }
 
     @Test
@@ -426,10 +431,16 @@ public class AuthorAffiliationAssignerTest {
         AuthorAffiliationAssigner.assign(authors, affs, null);
 
         // Both authors share marker "1" → both get MIT
-        assertThat(a1.getAffiliations(), hasSize(1));
+        // Stanford (marker "2") has no matching author but gets rescued
+        // to the first author with fewest affiliations (Smith, since both have 1)
+        assertThat(a1.getAffiliations(), hasSize(2));
         assertThat(a1.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+        assertThat(a1.getAffiliations().get(1).getRawAffiliationString(), is("Stanford"));
         assertThat(a2.getAffiliations(), hasSize(1));
         assertThat(a2.getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
+        // No affiliation should be orphaned
+        assertFalse(aff1.getFailAffiliation());
+        assertFalse(aff2.getFailAffiliation());
     }
 
     @Test
@@ -480,6 +491,61 @@ public class AuthorAffiliationAssignerTest {
         assertThat(authors.get(0).getAffiliations().get(0).getRawAffiliationString(), is("MIT"));
         assertThat(authors.get(1).getAffiliations(), hasSize(1));
         assertThat(authors.get(1).getAffiliations().get(0).getRawAffiliationString(), is("Stanford"));
+    }
+
+    // --- Orphan rescue tests ---
+
+    @Test
+    public void testOrphanRescue_proximityAllSameButOrphanExists() {
+        // 3 authors on same line, 3 affiliations stacked below.
+        // Without rescue, proximity assigns all authors to nearest aff0,
+        // leaving aff1 and aff2 orphaned.
+        Person a1 = person("Jeong");
+        a1.setLayoutTokens(tokensAt(100, 50, 1));
+        Person a2 = person("Chang");
+        a2.setLayoutTokens(tokensAt(250, 50, 1));
+        Person a3 = person("Valdez");
+        a3.setLayoutTokens(tokensAt(400, 50, 1));
+        List<Person> authors = Arrays.asList(a1, a2, a3);
+
+        Affiliation aff0 = affiliation("Simon Fraser");
+        aff0.setLayoutTokens(tokensAt(100, 100, 1));
+        Affiliation aff1 = affiliation("Texas A&M");
+        aff1.setLayoutTokens(tokensAt(100, 130, 1));
+        Affiliation aff2 = affiliation("UConn");
+        aff2.setLayoutTokens(tokensAt(100, 160, 1));
+        List<Affiliation> affs = Arrays.asList(aff0, aff1, aff2);
+
+        AuthorAffiliationAssigner.assign(authors, affs, null);
+
+        // All 3 affiliations should be assigned (no orphans)
+        for (Affiliation aff : affs) {
+            assertFalse("Affiliation '" + aff.getRawAffiliationString() + "' should not be orphaned",
+                    aff.getFailAffiliation());
+        }
+        // Each author should have at least one affiliation
+        for (Person aut : authors) {
+            assertNotNull(aut.getAffiliations());
+            assertFalse("Author '" + aut.getLastName() + "' should have affiliations",
+                    aut.getAffiliations().isEmpty());
+        }
+    }
+
+    @Test
+    public void testOrphanRescue_noCoordinates() {
+        // 2 authors, 3 affiliations, no markers, no coordinates.
+        // Sequential assigns 1:1 (a1->aff0, a2->aff1), leaving aff2 orphaned.
+        // Rescue should assign aff2 to the author with fewest affiliations.
+        List<Person> authors = authors("Barua", "Maitra");
+        List<Affiliation> affs = affiliations("ISI Kolkata", "UMinn", "Extra Lab");
+
+        AuthorAffiliationAssigner.assign(authors, affs, null);
+
+        // All affiliations should be assigned
+        for (Affiliation aff : affs) {
+            assertFalse("Affiliation '" + aff.getRawAffiliationString() + "' should not be orphaned",
+                    aff.getFailAffiliation());
+        }
     }
 
     // --- Null / empty tests ---

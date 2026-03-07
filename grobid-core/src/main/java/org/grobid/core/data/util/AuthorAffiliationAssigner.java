@@ -84,6 +84,12 @@ public class AuthorAffiliationAssigner {
 
         // 5. Sequential fallback (last resort when no coordinates available)
         assignBySequence(authors, affiliations);
+
+        // 6. Orphan rescue: assign any remaining unlinked affiliations to the
+        //    nearest author by proximity (or sequentially if no coordinates).
+        //    This prevents affiliations from being completely lost when the
+        //    earlier strategies over-assigned some affiliations.
+        rescueOrphanAffiliations(authors, affiliations);
     }
 
     /**
@@ -452,6 +458,61 @@ public class AuthorAffiliationAssigner {
         }
 
         return dist;
+    }
+
+    /**
+     * Rescue orphan affiliations that remain unassigned after all primary strategies.
+     * For each orphan affiliation, find the nearest author by coordinate proximity
+     * and add the affiliation to that author. If no coordinates are available,
+     * assign to the author with the fewest affiliations.
+     */
+    static void rescueOrphanAffiliations(List<Person> authors, List<Affiliation> affiliations) {
+        List<Affiliation> orphans = getFloatingAffiliations(affiliations);
+        if (orphans.isEmpty()) {
+            return;
+        }
+
+        LOGGER.debug("Orphan rescue: {} affiliations still unassigned", orphans.size());
+
+        for (Affiliation orphan : orphans) {
+            double[] orphanCentroid = computeCentroid(orphan.getLayoutTokens());
+
+            Person bestAuthor = null;
+
+            if (orphanCentroid != null) {
+                // Try proximity-based assignment
+                double bestDist = Double.MAX_VALUE;
+                for (Person aut : authors) {
+                    double[] autCentroid = computeCentroid(aut.getLayoutTokens());
+                    if (autCentroid != null) {
+                        double dist = distance(autCentroid, orphanCentroid);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestAuthor = aut;
+                        }
+                    }
+                }
+            }
+
+            if (bestAuthor == null) {
+                // No coordinates — assign to author with fewest affiliations
+                int minAffs = Integer.MAX_VALUE;
+                for (Person aut : authors) {
+                    int count = aut.getAffiliations() != null ? aut.getAffiliations().size() : 0;
+                    if (count < minAffs) {
+                        minAffs = count;
+                        bestAuthor = aut;
+                    }
+                }
+            }
+
+            if (bestAuthor != null) {
+                bestAuthor.addAffiliation(orphan);
+                orphan.setFailAffiliation(false);
+                LOGGER.debug("Orphan rescue: affiliation '{}' assigned to author '{}'",
+                        orphan.getRawAffiliationString(), bestAuthor.getLastName());
+            }
+        }
     }
 
     /**

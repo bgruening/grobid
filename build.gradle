@@ -32,10 +32,10 @@ def getJavaLibraryPath = {
     def javaLibraryPath = "${System.getProperty('java.library.path')}:${jepLocalLibraries}"
 
     def envPrefix = ""
-    if (System.env.CONDA_PREFIX) {
-        envPrefix = "${System.env.CONDA_PREFIX}"
-    } else if (System.env.VIRTUAL_ENV) {
+    if (System.env.VIRTUAL_ENV) {
         envPrefix = "${System.env.VIRTUAL_ENV}"
+    } else if (System.env.CONDA_PREFIX) {
+        envPrefix = "${System.env.CONDA_PREFIX}"
     }
 
     if (envPrefix) {
@@ -44,6 +44,19 @@ def getJavaLibraryPath = {
         def pythonVersion = (pythonDirectory =~ /python([0-9]\.[0-9]+)/)[0][1]
 
         javaLibraryPath += ":${envLibs}:${envLibs}/python${pythonVersion}/site-packages/jep"
+
+        // For virtualenvs (uv, venv), libpython may not be in the venv itself.
+        // Resolve the real Python installation's lib directory.
+        def pythonBin = java.nio.file.Paths.get(envPrefix, "bin", "python3")
+        if (!java.nio.file.Files.exists(pythonBin)) {
+            pythonBin = java.nio.file.Paths.get(envPrefix, "bin", "python")
+        }
+        if (java.nio.file.Files.exists(pythonBin)) {
+            def realPythonLib = pythonBin.toRealPath().parent.parent.resolve("lib").toString()
+            if (realPythonLib != new File(envLibs).toPath().toRealPath().toString()) {
+                javaLibraryPath += ":${realPythonLib}"
+            }
+        }
     }
     return javaLibraryPath
 }

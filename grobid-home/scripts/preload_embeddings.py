@@ -16,15 +16,16 @@ downloaded and loaded in lmdb at each run of the docker container.
 
 import os
 import argparse
-from delft.utilities.Embeddings import Embeddings, open_embedding_file
-from delft.utilities.Utilities import download_file
-import lmdb
 import json
-
-map_size = 100 * 1024 * 1024 * 1024
 
 
 def preload(embeddings_name, input_path=None, registry_path=None, output_path=None):
+    from delft.utilities.Embeddings import Embeddings, open_embedding_file
+    from delft.utilities.Utilities import download_file
+    import lmdb
+
+    map_size = 100 * 1024 * 1024 * 1024
+
     resource_registry = None
     if registry_path is not None:
         with open(registry_path, 'r') as f:

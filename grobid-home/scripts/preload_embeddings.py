@@ -21,7 +21,8 @@ from delft.utilities.Utilities import download_file
 import lmdb
 import json
 
-map_size = 100 * 1024 * 1024 * 1024 
+map_size = 100 * 1024 * 1024 * 1024
+
 
 def preload(embeddings_name, input_path=None, registry_path=None):
     resource_registry = None
@@ -38,27 +39,24 @@ def preload(embeddings_name, input_path=None, registry_path=None):
     if input_path is None:
         embeddings_path = None
         # download if url is available
-        if description is not None and "url" in description and len(description["url"])>0:
+        if description is not None and "url" in description and len(description["url"]) > 0:
             url = description["url"]
             download_path = embeddings.registry['embedding-download-path']
             # if the download path does not exist, we create it
-            if not os.path.isdir(download_path):
-                try:
-                    os.mkdir(download_path)
-                except OSError:
-                    print ("Creation of the download directory", download_path, "failed")
+            os.makedirs(download_path, exist_ok=True)
 
             print("Downloading resource file for", embeddings_name, "...")
             embeddings_path = download_file(url, download_path)
             if embeddings_path != None and os.path.isfile(embeddings_path):
-                print("Download sucessful:", embeddings_path)
+                print("Download successful:", embeddings_path)
         else:
             print("Embeddings resource is not specified in the embeddings registry:", embeddings_name)
     else:
         embeddings_path = input_path
 
-    if embeddings_path == None:
-        print("Fail to retrive embedding file for", embeddings_name)
+    if embeddings_path is None:
+        print("Fail to retrieve embedding file for", embeddings_name)
+        return
 
     embedding_file = open_embedding_file(embeddings_path)
     if embedding_file is None:
@@ -75,19 +73,23 @@ def preload(embeddings_name, input_path=None, registry_path=None):
     embeddings.load_embeddings_from_file(embeddings_path)
     embeddings.clean_downloads()
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "preload embeddings during the GROBID docker image build as embedded lmdb")
+    parser = argparse.ArgumentParser(
+        description="preload embeddings during the GROBID docker image build as embedded lmdb")
     parser.add_argument("--embedding", default='glove-840B',
-        help=(
-            "the desired pre-trained word embeddings using their descriptions in the file"
-            " embedding-registry.json,"
-            " be sure to use here the same name as in the registry (e.g. 'glove-840B', 'fasttext-crawl', 'word2vec')"
-        )
-    )
-    parser.add_argument("--input", help="path to the embeddings file to be loaded located on the host machine (where the docker image is built),"
-                                       " this is optional, without this parameter the embeddings file will be downloaded from the url indicated"
-                                       " in the embddings registry, embedding-registry.json")
-    parser.add_argument("--registry", help="path to the embedding registry to be considered for setting the paths/urls to embeddings")
+                        help=(
+                            "the desired pre-trained word embeddings using their descriptions in the file"
+                            " embedding-registry.json,"
+                            " be sure to use here the same name as in the registry (e.g. 'glove-840B', 'fasttext-crawl', 'word2vec')"
+                        )
+                        )
+    parser.add_argument("--input",
+                        help="path to the embeddings file to be loaded located on the host machine (where the docker image is built),"
+                             " this is optional, without this parameter the embeddings file will be downloaded from the url indicated"
+                             " in the embeddings registry, embedding-registry.json")
+    parser.add_argument("--registry",
+                        help="path to the embedding registry to be considered for setting the paths/urls to embeddings")
 
     args = parser.parse_args()
 

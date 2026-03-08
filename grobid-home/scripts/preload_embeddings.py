@@ -24,9 +24,9 @@ import json
 map_size = 100 * 1024 * 1024 * 1024
 
 
-def preload(embeddings_name, input_path=None, registry_path=None):
+def preload(embeddings_name, input_path=None, registry_path=None, output_path=None):
     resource_registry = None
-    if registry_path != None:
+    if registry_path is not None:
         with open(registry_path, 'r') as f:
             resource_registry = json.load(f)
 
@@ -64,7 +64,7 @@ def preload(embeddings_name, input_path=None, registry_path=None):
         return
 
     # create and load the database in write mode
-    embedding_lmdb_path = embeddings.registry["embedding-lmdb-path"]
+    embedding_lmdb_path = output_path if output_path else embeddings.registry["embedding-lmdb-path"]
     if not os.path.isdir(embedding_lmdb_path):
         os.makedirs(embedding_lmdb_path)
 
@@ -90,11 +90,14 @@ if __name__ == "__main__":
                              " in the embeddings registry, embedding-registry.json")
     parser.add_argument("--registry",
                         help="path to the embedding registry to be considered for setting the paths/urls to embeddings")
+    parser.add_argument("--output",
+                        help="output directory for the lmdb database, overrides the embedding-lmdb-path from the registry")
 
     args = parser.parse_args()
 
     embeddings_name = args.embedding
     input_path = args.input
     registry_path = args.registry
+    output_path = args.output
 
-    preload(embeddings_name, input_path, registry_path)
+    preload(embeddings_name, input_path, registry_path, output_path)

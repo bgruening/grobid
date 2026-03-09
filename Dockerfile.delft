@@ -112,7 +112,7 @@ WORKDIR /opt/grobid
 COPY --from=builder /opt/grobid .
 
 # install DeLFT
-RUN pip3 install --no-cache-dir delft==0.4.1
+RUN pip3 install --no-cache-dir delft==0.4.2
 
 # Build JEP with temporary access to full JDK (needs javac + JNI headers).
 # The bind mount is only visible during this RUN step — zero overhead in the final image.
@@ -142,7 +142,7 @@ ENTRYPOINT ["/tini", "-s", "--"]
 
 WORKDIR /opt/grobid
 
-# preload embeddings, for GROBID all the RNN models use glove-840B (default for the script), ELMo is currently not loaded
+# preload embeddings, for GROBID all the RNN models use glove-840B (default for the script),
 # to be done: mechanism to download GROBID fine-tuned models based on SciBERT if selected (but not good enough for the moment)
 COPY --from=builder /opt/grobid-source/grobid-home/scripts/preload_embeddings.py .
 COPY --from=builder /opt/grobid-source/grobid-home/config/resources-registry.json .

@@ -1940,6 +1940,60 @@ public class BiblioItem {
 	}	
 
     /**
+     * Format initials by appending a dot to single-letter tokens.
+     * Splits on whitespace and hyphens (preserving hyphens).
+     * e.g. "W S" -> "W. S.", "J-L" -> "J.-L.", "Nicholas" -> "Nicholas", "W" -> "W."
+     */
+    private static String formatInitials(String name) {
+        if (StringUtils.isBlank(name)) {
+            return name;
+        }
+        String[] spaceParts = name.trim().split("\\s+");
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < spaceParts.length; i++) {
+            if (i > 0) {
+                result.append(" ");
+            }
+            // Handle hyphenated parts
+            String[] hyphenParts = spaceParts[i].split("(?<=-)(?=[^-])|(?<=[^-])(?=-)");
+            for (String hp : hyphenParts) {
+                if (hp.equals("-")) {
+                    result.append("-");
+                } else if (hp.length() == 1 && Character.isLetter(hp.charAt(0))) {
+                    result.append(hp).append(".");
+                } else {
+                    result.append(hp);
+                }
+            }
+        }
+        return result.toString();
+    }
+
+    /**
+     * Format a Person's name for BibTeX output.
+     * Returns the formatted name string, or empty string if no name parts are present.
+     */
+    private static String formatPersonNameBibTeX(Person person) {
+        StringBuilder sb = new StringBuilder();
+        if (StringUtils.isNotBlank(person.getLastName())) {
+            sb.append(person.getLastName().trim());
+        }
+        if (StringUtils.isNotBlank(person.getFirstName())) {
+            if (sb.length() > 0) {
+                sb.append(", ");
+            }
+            sb.append(formatInitials(person.getFirstName().trim()));
+        }
+        if (StringUtils.isNotBlank(person.getMiddleName())) {
+            if (sb.length() > 0) {
+                sb.append(StringUtils.isBlank(person.getFirstName()) ? ", " : " ");
+            }
+            sb.append(formatInitials(person.getMiddleName().trim()));
+        }
+        return sb.toString();
+    }
+
+    /**
      * Export to BibTeX format. Use "id" as BibTeX key.
      */
     public String toBibTeX() {
@@ -1990,24 +2044,15 @@ public class BiblioItem {
                 bibtex.add("  author = {" + collaboration + "}");
             } else {
                 StringJoiner authors = new StringJoiner(" and ", "  author = {", "}");
-                if (fullAuthors != null) {
+                if (CollectionUtils.isNotEmpty(fullAuthors)) {
                     fullAuthors.stream()
-                               .filter(person -> person != null)
-                               .forEachOrdered(person -> {
-                                   String author = "";
-                                   if (person.getLastName() != null) {
-                                       author = person.getLastName();
-                                   }
-                                   if (person.getFirstName() != null) {
-                                       if (author.length() > 0) {
-                                           author += ", ";
-                                       }
-                                       author += person.getFirstName();
-                                   }
-                                   if (author.length() > 0 ) {
-                                       authors.add(author);
-                                   }
-                               });
+                       .filter(Objects::nonNull)
+                       .forEachOrdered(person -> {
+                           String author = formatPersonNameBibTeX(person);
+                           if (StringUtils.isNotBlank(author)) {
+                               authors.add(author);
+                           }
+                       });
                 } else if (this.authors != null) {
                     StringTokenizer st = new StringTokenizer(this.authors, ";");
                     while (st.hasMoreTokens()) {
@@ -2046,11 +2091,22 @@ public class BiblioItem {
             }
 
             // editors
-            if (editors != null) {
+            boolean editorsAdded = false;
+            if (CollectionUtils.isNotEmpty(fullEditors)) {
+                String editorStr = fullEditors.stream()
+                       .filter(Objects::nonNull)
+                       .map(BiblioItem::formatPersonNameBibTeX)
+                       .filter(StringUtils::isNotBlank)
+                       .collect(Collectors.joining(" and "));
+                if (StringUtils.isNotBlank(editorStr)) {
+                    bibtex.add("  editor = {" + editorStr + "}");
+                    editorsAdded = true;
+                }
+            }
+            if (!editorsAdded && editors != null) {
                 String locEditors = editors.replace(" ; ", " and ");
                 bibtex.add("  editor = {" + locEditors + "}");
             }
-            // fullEditors has to be used instead
 
             // dates
             if (normalized_publication_date != null) {

@@ -257,7 +257,7 @@ public class EngineParsers implements Closeable {
             }
         }
         return fundingAcknowledgementParser;
-    }
+    } 
 
     public FigureSegmenterParser getFigureSegmenterParser() {
         if (figureSegmenterParser == null) {
@@ -271,23 +271,32 @@ public class EngineParsers implements Closeable {
     }
 
     /**
-     * Init all model, this will also load the model into memory
+     * Init all model, this will also load the model into memory.
+     * Each parser is initialized independently so that one failure doesn't prevent others from loading.
      */
     public void initAll() {
-        affiliationAddressParser = getAffiliationAddressParser();
-        authorParser = getAuthorParser();
-        headerParser = getHeaderParser();
-        dateParser = getDateParser();
-        citationParser = getCitationParser();
-        fullTextParser = getFullTextParser();
-        //referenceExtractor = getReferenceExtractor();
-        segmentationParser = getSegmentationParser();
-        referenceSegmenterParser = getReferenceSegmenterParser();
-        figureParser = getFigureParser();
-        tableParser = getTableParser();
-        //MonographParser monographParser = getMonographParser();
-        fundingAcknowledgementParser = getFundingAcknowledgementParser();
-        figureSegmenterParser = getFigureSegmenterParser();
+        tryInit(() -> affiliationAddressParser = getAffiliationAddressParser(), "affiliationAddress");
+        tryInit(() -> authorParser = getAuthorParser(), "author");
+        tryInit(() -> headerParser = getHeaderParser(), "header");
+        tryInit(() -> dateParser = getDateParser(), "date");
+        tryInit(() -> citationParser = getCitationParser(), "citation");
+        tryInit(() -> fullTextParser = getFullTextParser(), "fullText");
+        //tryInit(() -> referenceExtractor = getReferenceExtractor(), "referenceExtractor");
+        tryInit(() -> segmentationParser = getSegmentationParser(), "segmentation");
+        tryInit(() -> referenceSegmenterParser = getReferenceSegmenterParser(), "referenceSegmenter");
+        tryInit(() -> figureParser = getFigureParser(), "figure");
+        tryInit(() -> tableParser = getTableParser(), "table");
+        //tryInit(() -> monographParser = getMonographParser(), "monograph");
+        tryInit(() -> fundingAcknowledgementParser = getFundingAcknowledgementParser(), "fundingAcknowledgement");
+        tryInit(() -> figureSegmenterParser = getFigureSegmenterParser(), "figureSegmenterParser");
+    }
+
+    private void tryInit(Runnable init, String parserName) {
+        try {
+            init.run();
+        } catch (Exception e) {
+            LOGGER.error("Failed to initialize " + parserName + " parser", e);
+        }
     }
 
     @Override

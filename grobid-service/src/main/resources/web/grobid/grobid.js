@@ -41,9 +41,24 @@ var grobid = (function($) {
 			$('#gbdForm3').attr('action', baseUrl);
 	}
 
+	function fetchVersion() {
+		$.ajax({
+			type: 'GET',
+			url: defineBaseURL('version'),
+			dataType: 'json',
+			success: function(data) {
+				var versionHtml = '- version: ' + data.version;
+				if (data.revision && data.revision !== 'unknown') {
+					versionHtml += ' (<a href="https://github.com/grobidOrg/grobid/commit/' + encodeURIComponent(data.revision) + '" target="_blank" style="color:#848484;">' + data.revision + '</a>)';
+				}
+				$('#grobid-version').html(versionHtml);
+			}
+		});
+	}
+
 	$(document).ready(function() {
-		$("#subTitle").html("About");
 		$("#divAbout").show();
+		fetchVersion();
 		//$("#divAdmin").hide();
 
 		// for TEI-based results
@@ -55,7 +70,6 @@ var grobid = (function($) {
         // for patent processing
         $("#divRestIII").hide();
 
-		$("#divDoc").hide();
 		$('#consolidateBlock').show();
         $("#btn_download").hide();
         $("#btn_download3").hide();
@@ -112,42 +126,33 @@ var grobid = (function($) {
 			$("#rest").attr('class', 'section-not-active');
 			$("#pdf").attr('class', 'section-not-active');
 			//$("#admin").attr('class', 'section-not-active');
-			$("#doc").attr('class', 'section-not-active');
 			$("#patent").attr('class', 'section-not-active');
-
-			$("#subTitle").html("About");
-			$("#subTitle").show();
 
 			$("#divAbout").show();
 			$("#divRestI").hide();
 			$("#divRestII").hide();
 			$("#divRestIII").hide();
 			//$("#divAdmin").hide();
-			$("#divDoc").hide();
-			$("#divDemo").hide();
+			$("#sideLinks").show();
 			return false;
 		});
 		$("#rest").click(function() {
 			$("#rest").attr('class', 'section-active');
 			$("#pdf").attr('class', 'section-not-active');
-			$("#doc").attr('class', 'section-not-active');
 			$("#about").attr('class', 'section-not-active');
 			//$("#admin").attr('class', 'section-not-active');
 			$("#patent").attr('class', 'section-not-active');
 
-			$("#subTitle").hide();
 			block = 0;
-			//$("#subTitle").html("TEI output service");
-			//$("#subTitle").show();
 			processChange();
 
 			$("#divRestI").show();
 			$("#divRestII").hide();
 			$("#divRestIII").hide();
 			$("#divAbout").hide();
-			$("#divDoc").hide();
 			//$("#divAdmin").hide();
-			$("#divDemo").hide();
+			$("#sideLinks").hide();
+
 			return false;
 		});
 		/*$("#admin").click(function() {
@@ -171,47 +176,24 @@ var grobid = (function($) {
 			$("#divDemo").hide();
 			return false;
 		});*/
-		$("#doc").click(function() {
-			$("#doc").attr('class', 'section-active');
-			$("#rest").attr('class', 'section-not-active');
-			$("#pdf").attr('class', 'section-not-active');
-			$("#patent").attr('class', 'section-not-active');
-			$("#about").attr('class', 'section-not-active');
-			//$("#admin").attr('class', 'section-not-active');
-
-			$("#subTitle").html("Doc");
-			$("#subTitle").show();
-
-			$("#divDoc").show();
-			$("#divAbout").hide();
-			$("#divRestI").hide();
-			$("#divRestII").hide();
-			$("#divRestIII").hide();
-			//$("#divAdmin").hide();
-			$("#divDemo").hide();
-			return false;
-		});
 		$("#pdf").click(function() {
 			$("#pdf").attr('class', 'section-active');
 			$("#rest").attr('class', 'section-not-active');
 			$("#patent").attr('class', 'section-not-active');
 			$("#about").attr('class', 'section-not-active');
 			//$("#admin").attr('class', 'section-not-active');
-			$("#doc").attr('class', 'section-not-active');
 
 			block = 1;
 			setBaseUrl('referenceAnnotations');
-			$("#subTitle").hide();
 			processChange();
-			//$("#subTitle").html("PDF annotation services");
-			//$("#subTitle").show();
 
-			$("#divDoc").hide();
 			$("#divAbout").hide();
 			$("#divRestI").hide();
 			$("#divRestII").show();
 			$("#divRestIII").hide();
 			//$("#divAdmin").hide();
+			$("#sideLinks").hide();
+
 			return false;
 		});
 		$("#patent").click(function() {
@@ -220,19 +202,18 @@ var grobid = (function($) {
 			$("#pdf").attr('class', 'section-not-active');
 			$("#about").attr('class', 'section-not-active');
 			//$("#admin").attr('class', 'section-not-active');
-			$("#doc").attr('class', 'section-not-active');
 
 			block = 2;
 			setBaseUrl('processCitationPatentST36');
-			$("#subTitle").hide();
 			processChange();
 
-			$("#divDoc").hide();
 			$("#divAbout").hide();
 			$("#divRestI").hide();
 			$("#divRestII").hide();
 			$("#divRestIII").show();
 			//$("#divAdmin").hide();
+			$("#sideLinks").hide();
+
 			return false;
 		});
 	});

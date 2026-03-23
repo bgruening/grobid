@@ -165,7 +165,7 @@ For example, the BibTeX would look like this:
     title = {GROBID},
     howpublished = {\url{https://github.com/kermitt2/grobid}},
     publisher = {GitHub},
-    year = {2008--2025},
+    year = {2008--2026},
     archivePrefix = {swh},
     eprint = {1:dir:dab86b296e3c3216e2241968f0d63b68e8209d3c}
 }

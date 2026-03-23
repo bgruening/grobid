@@ -3,7 +3,7 @@ package org.grobid.core.utilities;
 import java.util.List;
 
 /**
- * This class is a bean for the YAML configuation of the GROBID instance.  
+ * This class is a bean for the YAML configuration of the GROBID instance.
  *
  */
 public class GrobidConfig {
@@ -51,6 +51,7 @@ public class GrobidConfig {
     public static class CrossrefParameters {
         public String mailto;
         public String token;
+        public int timeoutSec = 60;
     }
 
     public static class HostParameters {
@@ -58,6 +59,7 @@ public class GrobidConfig {
         public String host;
         public int port;
         public String url;
+        public int timeoutSec = 60;
     }
     
     public static class DelftParameters {

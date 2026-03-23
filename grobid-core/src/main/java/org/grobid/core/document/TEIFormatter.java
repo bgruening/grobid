@@ -82,10 +82,10 @@ public class TEIFormatter {
     private static final int ITALIC_POS = 16;
     private static final int BOLD_POS = 15;
 
-    private static Pattern numberRef = Pattern.compile("(\\[|\\()\\d+\\w?(\\)|\\])");
-    private static Pattern numberRefCompact =
-            Pattern.compile("(\\[|\\()((\\d)+(\\w)?(\\-\\d+\\w?)?,\\s?)+(\\d+\\w?)(\\-\\d+\\w?)?(\\)|\\])");
-    private static Pattern numberRefCompact2 = Pattern.compile("(\\[|\\()(\\d+)(-|‒|–|—|―|\u2013)(\\d+)(\\)|\\])");
+//    private static Pattern numberRef = Pattern.compile("(\\[|\\()\\d+\\w?(\\)|\\])");
+//    private static Pattern numberRefCompact =
+//            Pattern.compile("(\\[|\\()((\\d)+(\\w)?(\\-\\d+\\w?)?,\\s?)+(\\d+\\w?)(\\-\\d+\\w?)?(\\)|\\])");
+//    private static Pattern numberRefCompact2 = Pattern.compile("(\\[|\\()(\\d+)(-|‒|–|—|―|\u2013)(\\d+)(\\)|\\])");
 
     private static Pattern startNum = Pattern.compile("^(\\d+\\.?\\s)(.*)");
 
@@ -1675,7 +1675,7 @@ public class TEIFormatter {
                 List<Pair<OffsetPosition, String>> offsetPositionsAndDestinationUrls = Lexicon.tokenPositionUrlPatternWithPdfAnnotations(clusterTokens, doc.getPDFAnnotations());
 
                 offsetPositionsAndDestinationUrls.stream()
-                    .filter(opu -> opu.getLeft().end - opu.getLeft().start > 0)
+//                    .filter(opu -> opu.getLeft().end - opu.getLeft().start > 0)
                     .forEach(opu -> {
                             // We correct the latest token here, since later we will do a substring in the shared code,
                             // and we cannot add a +1 there.

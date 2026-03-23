@@ -1,0 +1,86 @@
+name: Build and push an ONNX docker image
+
+# This workflow builds the lightweight ONNX/Wapiti-only Docker image
+# (no Python/DeLFT/TensorFlow dependencies)
+
+on:
+  push:
+    branches:
+      - onnx-docker
+  workflow_dispatch:
+    inputs:
+      custom_tag:
+        type: string
+        description: Docker image tag
+        required: true
+        default: "latest-onnx"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-tags: true
+        fetch-depth: 0
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+    - uses: gradle/actions/setup-gradle@v4
+    - name: Build with Gradle
+      run: ./gradlew build -x test
+
+  docker-build-onnx:
+    needs: [ build ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create more disk space
+        run: sudo rm -rf /usr/share/dotnet && sudo rm -rf /opt/ghc && sudo rm -rf "/usr/local/share/boost" && sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_LFOPPIANO }}
+          password: ${{ secrets.DOCKERHUB_TOKEN_LFOPPIANO }}
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.onnx
+          push: true
+          tags: |
+            lfoppiano/grobid:latest-onnx, lfoppiano/grobid:${{ github.event.inputs.custom_tag || github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
+      - name: Docker Image Summary
+        run: |
+          echo "## 🐳 Docker Image Uploaded Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Details:**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry:** docker.io" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** lfoppiano/grobid" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type:** ONNX/Wapiti only (lightweight, no Python/DeLFT)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo "  - \`latest-onnx\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - \`${{ github.event.inputs.custom_tag || github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Digest:** \`${{ steps.docker_build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Features:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ONNX Runtime for deep learning models (CPU only)" >> $GITHUB_STEP_SUMMARY
+          echo "- Wapiti CRF for traditional models" >> $GITHUB_STEP_SUMMARY
+          echo "- No Python, TensorFlow, or DeLFT dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Usage:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull lfoppiano/grobid:latest-onnx" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -t --rm --init -p 8070:8070 -p 8071:8071 lfoppiano/grobid:latest-onnx" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

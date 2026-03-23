@@ -47,39 +47,67 @@
 						<small>
 			<a class="section-active" id="about" href="#">About</a> 
 				<span style="padding-left:20px;">&nbsp;</span> 	
-			<a class="section-not-active" id="rest" href="#">TEI</a> 
+			<a class="section-not-active" id="rest" href="#">Process</a> 
 				<span style="padding-left:20px;">&nbsp;</span> 
-			<a class="section-not-active" id="pdf" href="#">PDF</a> 
+			<a class="section-not-active" id="pdf" href="#">Annotate PDF</a> 
 				<span style="padding-left:20px;">&nbsp;</span> 	
-			<a class="section-not-active" id="patent" href="#">Patent</a> 
+			<a class="section-not-active" id="patent" href="#">Patents</a> 
 				<span style="padding-left:20px;">&nbsp;</span>
 			<!--a class="section-not-active" id="admin" href="#">Admin</a> 
 				<span style="padding-left:20px;">&nbsp;</span-->
-			<a class="section-not-active" id="doc" href="#">Doc</a> 
-				<span style="padding-left:20px;">&nbsp;</span> 
 						</small>
 					</h2>
 				</h1>
 	        </div>
 	
-			<table border="0">
-				<tr>
-				<td style="width:100px;align:left;vertical-align: top;"><h4><span id="subTitle"></span></h4></td> 
-	            <td style="align:left;vertical-align: top;">
-					<div id="divAbout"> 
-						<p><large><b>Grobid</b> Bibliographical Extraction</p>
-						<p>This is an open source software available on <a href="https://github.com/kermitt2/grobid" target=_blank>GitHub</a> under <a href="http://www.apache.org/licenses/LICENSE-2.0" target=_blank>Apache 2 License</a>. </p>  	
-						<p>Contact: <a style="color:#70695C;" href="mailto:patrice.lopez@science-miner.com?subject=GROBID">Patrice Lopez</a>.</p> 
+			<span id="subTitle" style="display:none;"></span>
+					<div id="divAbout">
+						<p><large><b>Grobid</b> (GeneRation Of BIbliographic Data) is a machine learning library for extracting, parsing, and restructuring raw documents such as PDF into structured TEI-encoded documents, with a particular focus on technical and scientific publications.</p>
+                        <p>Official repository on <i class="icon-github" style="font-size:16px;"></i> <a href="https://github.com/kermitt2/grobid" target="_blank">GitHub</a>.</p>
+						<p><b>What you can do from this console:</b></p>
+						<ul>
+							<li><b>Process</b> &mdash; Extract structured data from PDFs (headers, full text, references) or parse raw text (dates, names, affiliations, citations)</li>
+							<li><b>Annotate PDF</b> &mdash; Upload a PDF and get back an annotated version with visual overlays highlighting the extracted structures</li>
+							<li><b>Patents</b> &mdash; Extract and annotate citations from patent documents</li>
+						</ul>
+
+						<p><b>Documentation:</b></p>
+						<table style="margin-bottom:10px;">
+							<tr>
+								<td style="padding:3px 15px 3px 0;vertical-align:top;">🚀 <a href="https://grobid.readthedocs.io/en/latest/getting_started/" target=_blank>Getting started</a></td>
+								<td style="padding:3px 0;color:#666;">Installation, first steps, and basic usage</td>
+							</tr>
+							<tr>
+								<td style="padding:3px 15px 3px 0;vertical-align:top;">⚙️ <a href="https://grobid.readthedocs.io/en/latest/Principles/" target=_blank>How Grobid works</a></td>
+								<td style="padding:3px 0;color:#666;">Architecture and processing pipeline overview</td>
+							</tr>
+							<tr>
+								<td style="padding:3px 15px 3px 0;vertical-align:top;">🔌 <a href="https://grobid.readthedocs.io/en/latest/Grobid-service/" target=_blank>Web service API</a></td>
+								<td style="padding:3px 0;color:#666;">REST API endpoints and client libraries</td>
+							</tr>
+							<tr>
+								<td style="padding:3px 15px 3px 0;vertical-align:top;">📄 <a href="https://grobid.readthedocs.io/en/latest/TEI-encoding-of-results/" target=_blank>Understanding the output (TEI)</a></td>
+								<td style="padding:3px 0;color:#666;">TEI is the XML format used by Grobid to structure extracted data</td>
+							</tr>
+							<tr>
+								<td style="padding:3px 15px 3px 0;vertical-align:top;">🐳 <a href="https://grobid.readthedocs.io/en/latest/Grobid-docker/" target=_blank>Running with Docker</a></td>
+								<td style="padding:3px 0;color:#666;">Container-based deployment for easy setup</td>
+							</tr>
+							<tr>
+								<td style="padding:3px 15px 3px 0;vertical-align:top;">❓ <a href="https://grobid.readthedocs.io/en/latest/Frequently-asked-questions/" target=_blank>FAQ &amp; Troubleshooting</a></td>
+								<td style="padding:3px 0;color:#666;">Common questions and solutions</td>
+							</tr>
+							<tr>
+								<td style="padding:3px 15px 3px 0;vertical-align:top;">📚 <a href="https://grobid.readthedocs.io/en/latest/" target=_blank>Full documentation</a></td>
+								<td style="padding:3px 0;color:#666;">Complete reference on readthedocs</td>
+							</tr>
+						</table>
+
+						<p><b>Contact:</b> <a style="color:#70695C;" href="mailto:patrice.lopez@science-miner.com,luca@sciencialab.com?subject=GROBID">Patrice Lopez and Luca Foppiano</a>.</p>
 					</div>
-					<div id="divDoc"> 
-						<p>This bibliographical analysis demo is based on the Grobid web services.</p>  
-						<p>For documentation and link to the Javadoc, please visit the <a href="http://grobid.readthedocs.org" target=_blank>Grobid documentation pages</a>.</p>
-					</div>
-				</td> 
-			    </tr>
-			</table>
 			
-	        <div id="divRestI">      
+	        <div id="divRestI">
+				<p style="margin-top:0; margin-bottom:8px; color:#555; font-size:14px;">Extract structured data (headers, references, citations) from PDFs or raw text</p>
 				<form class="form-horizontal" method="post" id="gbdForm" target=_blank accept-charset="UTF-8">
 					<table border="0">
 						<tr>
@@ -206,7 +234,8 @@
 				<div id="requestResult"></div>
 			</div>
 
-			<div id="divRestII">      
+			<div id="divRestII">
+				<p style="margin-top:0; margin-bottom:8px; color:#555; font-size:14px;">Visualize extracted annotations overlaid on your PDF</p>
 				<form class="form-horizontal" method="post" id="gbdForm2" target=_blank accept-charset="UTF-8">
 					<table border="0">
 						<tr>
@@ -262,7 +291,8 @@
 				<div id="requestResult2"></div>
 			</div>
 
-			<div id="divRestIII">      
+			<div id="divRestIII">
+				<p style="margin-top:0; margin-bottom:8px; color:#555; font-size:14px;">Extract and annotate citations from patent documents</p>
 				<form class="form-horizontal" method="post" id="gbdForm3" target=_blank accept-charset="UTF-8">
 					<table border="0">
 						<tr>
@@ -344,12 +374,18 @@
 				</div>
 			</div-->
 	
-	    </div>  
-		
+		<div id="sideLinks" style="text-align:right; padding:10px 15px;">
+			<a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank" title="Apache 2.0 License" style="color:#333; font-size:18px;"><i class="icon-legal"></i> <span style="font-size:12px;">Apache 2.0</span></a>
+			<a href="https://hub.docker.com/r/lfoppiano/grobid/" target="_blank" title="Grobid on Docker Hub" style="color:#333; margin-left:12px; display:inline-block; vertical-align:middle;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" width="28" height="28" fill="currentColor"><path d="M349.9 236.3h-66.1v-59.4h66.1v59.4zm0-204.3h-66.1v60.7h66.1V32zm78.2 144.8H362v59.4h66.1v-59.4zm-156.3-72.1h-66.1v60.1h66.1v-60.1zm78.1 0h-66.1v60.1h66.1v-60.1zm276.8 100c-14.4-9.7-47.6-13.2-73.1-8.4-3.3-24-16.7-44.9-41.1-63.7l-14-9.3-9.3 14c-18.4 27.8-23.4 73.6-3.7 103.8-8.7 4.7-25.8 11.1-48.4 10.7H2.4c-8.7 50.8 5.8 116.8 44 162.1 37.1 43.9 92.7 66.2 165.4 66.2 157.4 0 273.9-72.5 328.4-204.2 21.4.4 67.6.1 91.3-45.2 1.5-2.5 6.6-13.2 8.5-17.1l-13.3-8.9zm-511.1-27.9h-66v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1v-59.4zm-78.1-72.1h-66.1v60.1h66.1v-60.1z"/></svg></a>
+			<a href="https://github.com/kermitt2/grobid" target="_blank" title="Grobid on GitHub" style="color:#333; font-size:28px; margin-left:12px;"><i class="icon-github"></i></a>
+		</div>
+
+	    </div>
+
 		<footer>
-		  <p><span style="color:#848484;">&copy; Grobid contributors 2025 </span></p>
+		  <p><span style="color:#848484;">&copy; Grobid contributors 2026</span> <span id="grobid-version" style="color:#848484;"></span></p>
 		  </footer>
 		</div>
 		
-    </body> 
+    </body>
 </html>

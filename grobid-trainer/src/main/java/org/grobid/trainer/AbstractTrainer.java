@@ -7,6 +7,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.text.RandomStringGenerator;
 import org.grobid.core.GrobidModel;
 import org.grobid.core.GrobidModels;
+import org.grobid.core.GrobidModels.Flavor;
 import org.grobid.core.engines.tagging.GenericTagger;
 import org.grobid.core.engines.tagging.GrobidCRFEngine;
 import org.grobid.core.engines.tagging.TaggerFactory;
@@ -33,6 +34,8 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -46,6 +49,8 @@ public abstract class AbstractTrainer implements Trainer {
     protected double epsilon = 0.0; // size of the interval for stopping criterion
     protected int window = 0; // similar to CRF++
     protected int nbMaxIterations = 0; // maximum number of iterations in training
+    protected File outputModelPath = null; // custom output model path; null = use GrobidProperties default
+    protected File evaluationModelPath = null; // custom model path for eval; null = use GrobidProperties default
 
     protected GrobidModel model;
     private File trainDataPath;
@@ -73,6 +78,14 @@ public abstract class AbstractTrainer implements Trainer {
         this.nbMaxIterations = nbMaxIterations;
     }
 
+    public void setOutputModelPath(File outputModelPath) {
+        this.outputModelPath = outputModelPath;
+    }
+
+    public void setEvaluationModelPath(File evaluationModelPath) {
+        this.evaluationModelPath = evaluationModelPath;
+    }
+
     @Override
     public int createCRFPPData(final File corpusDir, final File trainingOutputPath) {
         return createCRFPPData(corpusDir, trainingOutputPath, null, 1.0);
@@ -89,23 +102,43 @@ public abstract class AbstractTrainer implements Trainer {
         createCRFPPData(getCorpusPath(), dataPath);
         GenericTrainer trainer = TrainerFactory.getTrainer(model);
 
-        trainer.setEpsilon(GrobidProperties.getEpsilon(model));
-        trainer.setWindow(GrobidProperties.getWindow(model));
-        trainer.setNbMaxIterations(GrobidProperties.getNbMaxIterations(model));
+        trainer.setEpsilon(epsilon != 0.0 ? epsilon : GrobidProperties.getEpsilon(model));
+        trainer.setWindow(window != 0 ? window : GrobidProperties.getWindow(model));
+        trainer.setNbMaxIterations(nbMaxIterations != 0 ? nbMaxIterations : GrobidProperties.getNbMaxIterations(model));
 
-        File dirModelPath = new File(GrobidProperties.getModelPath(model).getAbsolutePath()).getParentFile();
+        final File defaultModelPath = GrobidProperties.getModelPath(model);
+        final File finalModelPath;
+        if (outputModelPath != null) {
+            if (outputModelPath.getAbsolutePath().equals(defaultModelPath.getAbsolutePath())) {
+                throw new GrobidException("Custom output model path must differ from the default model path: "
+                    + defaultModelPath.getAbsolutePath());
+            }
+            finalModelPath = outputModelPath;
+        } else {
+            finalModelPath = defaultModelPath;
+        }
+
+        File dirModelPath = finalModelPath.getParentFile();
         if (!dirModelPath.exists()) {
             LOGGER.warn("Cannot find the destination directory " + dirModelPath.getAbsolutePath() + " for the model " + model.getModelName() + ". Creating it.");
             dirModelPath.mkdirs();
-            //throw new GrobidException("Cannot find the destination directory " + dirModelPath.getAbsolutePath() + " for the model " + model.toString());
         }
-        final File tempModelPath = new File(GrobidProperties.getModelPath(model).getAbsolutePath() + NEW_MODEL_EXT);
-        final File oldModelPath = GrobidProperties.getModelPath(model);
-        trainer.train(getTemplatePath(), dataPath, tempModelPath, GrobidProperties.getWapitiNbThreads(), model, incremental);
-        // if we are here, that means that training succeeded
-        // rename model for CRF sequence labellers (not with DeLFT deep learning models)
-        if (GrobidProperties.getGrobidEngine(this.model) != GrobidCRFEngine.DELFT)
-            renameModels(oldModelPath, tempModelPath);
+
+        if (outputModelPath != null) {
+            // Write directly to the specified path — no rename dance
+            trainer.train(getTemplatePath(), dataPath, finalModelPath, GrobidProperties.getWapitiNbThreads(), model, incremental);
+            System.out.println("Model for " + model + " created in " + finalModelPath.getAbsolutePath());
+        } else {
+            // Default atomic rename: write to .new, then rename
+            final File tempModelPath = new File(finalModelPath.getAbsolutePath() + NEW_MODEL_EXT);
+            trainer.train(getTemplatePath(), dataPath, tempModelPath, GrobidProperties.getWapitiNbThreads(), model, incremental);
+            // if we are here, that means that training succeeded
+            // rename model for CRF sequence labellers (not with DeLFT deep learning models)
+            if (GrobidProperties.getGrobidEngine(this.model) != GrobidCRFEngine.DELFT){
+                renameModels(finalModelPath, tempModelPath);
+                System.out.println("Model for " + model + " replaced in " + finalModelPath.getAbsolutePath());   
+            }
+        }
     }
 
     protected void renameModels(final File oldModelPath, final File tempModelPath) {
@@ -519,7 +552,9 @@ public abstract class AbstractTrainer implements Trainer {
 
     protected GenericTagger getTagger() {
         if (tagger == null) {
-            tagger = TaggerFactory.getTagger(model);
+            tagger = (evaluationModelPath != null)
+                ? TaggerFactory.getTaggerFromPath(evaluationModelPath, GrobidProperties.getGrobidEngine(model))
+                : TaggerFactory.getTagger(model);
         }
 
         return tagger;
@@ -669,5 +704,36 @@ public abstract class AbstractTrainer implements Trainer {
         return writer;
     }
 
+    /**
+     * Shared main() logic for simple trainers (no flavor).
+     */
+    public static void trainAndEvaluate(Supplier<? extends Trainer> trainerFactory) {
+        GrobidProperties.getInstance();
+        Trainer trainer = trainerFactory.get();
+        runTraining(trainer);
+        System.out.println(runEvaluation(trainer));
+        System.exit(0);
+    }
+
+    /**
+     * Shared main() logic for flavor-aware trainers.
+     */
+    public static void trainAndEvaluate(String[] args,
+            Supplier<? extends Trainer> defaultFactory,
+            Function<GrobidModels.Flavor, ? extends Trainer> flavorFactory) {
+        GrobidModels.Flavor theFlavor = null;
+        if (args.length > 0) {
+            theFlavor = GrobidModels.Flavor.fromLabel(args[0]);
+            if (theFlavor == null) {
+                System.out.println("Warning, the flavor is not recognized, " +
+                    "must be one of " + GrobidModels.Flavor.getLabels() + ", defaulting training with no flavor...");
+            }
+        }
+        GrobidProperties.getInstance();
+        Trainer trainer = (theFlavor == null) ? defaultFactory.get() : flavorFactory.apply(theFlavor);
+        runTraining(trainer);
+        System.out.println(runEvaluation(trainer));
+        System.exit(0);
+    }
 
 }

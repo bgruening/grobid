@@ -49,16 +49,67 @@ var grobid = (function($) {
 			success: function(data) {
 				var versionHtml = '- version: ' + data.version;
 				if (data.revision && data.revision !== 'unknown') {
-					versionHtml += ' (<a href="https://github.com/grobidOrg/grobid/commit/' + encodeURIComponent(data.revision) + '" target="_blank" style="color:#848484;">' + data.revision + '</a>)';
+					var commitHash = data.revision;
+					var match = data.revision.match(/-\d+-g([0-9a-f]+)$/);
+					if (match) commitHash = match[1];
+					versionHtml += ' (<a href="https://github.com/grobidOrg/grobid/commit/' + encodeURIComponent(commitHash) + '" target="_blank" style="color:#848484;">' + data.revision + '</a>)';
 				}
 				$('#grobid-version').html(versionHtml);
 			}
 		});
 	}
 
+	function fetchHealth() {
+		$.ajax({
+			type: 'GET',
+			url: defineBaseURL('health'),
+			dataType: 'json',
+			success: function(data) {
+				updateHealthIndicator(data);
+			},
+			error: function(jqXHR) {
+				try {
+					var data = JSON.parse(jqXHR.responseText);
+					updateHealthIndicator(data);
+				} catch (e) {
+					var indicator = $('#health-indicator');
+					indicator.removeClass('healthy unhealthy');
+					indicator.addClass('unhealthy');
+					indicator.attr('title', 'Service unreachable');
+				}
+			}
+		});
+	}
+
+	function updateHealthIndicator(data) {
+		var indicator = $('#health-indicator');
+		indicator.removeClass('healthy unhealthy');
+
+		var hasFailedModels = data.models && data.models.totalFailed > 0;
+		var isHealthy = data.ready && !hasFailedModels;
+
+		if (isHealthy) {
+			indicator.addClass('healthy');
+			indicator.attr('title', 'Service is ready');
+		} else {
+			indicator.addClass('unhealthy');
+			var reasons = [];
+			if (!data.initialized) reasons.push('service not initialized');
+			if (data.pool && !data.pool.initialized) reasons.push('engine pool not ready');
+			if (hasFailedModels)
+				reasons.push(data.models.totalFailed + ' model(s) failed to load');
+			if (data.initializationError) reasons.push(data.initializationError);
+			var title = 'Service is not ready';
+			if (reasons.length > 0) title += ': ' + reasons.join(', ');
+			indicator.attr('title', title);
+		}
+	}
+
 	$(document).ready(function() {
 		$("#divAbout").show();
 		fetchVersion();
+		fetchHealth();
+		setInterval(fetchHealth, 10000);
 		//$("#divAdmin").hide();
 
 		// for TEI-based results

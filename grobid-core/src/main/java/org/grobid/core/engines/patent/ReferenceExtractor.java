@@ -827,7 +827,7 @@ public class ReferenceExtractor implements Closeable {
                 if (bibResults != null) {
                     for (String ref : allReferencesNPL) {
                         BiblioItem result = bibResults.get(k);
-                        if (result == null) {
+                        if (result == null || result.rejectAsReference()) {
                             k++;
                             continue;
                         }
@@ -1372,7 +1372,7 @@ public class ReferenceExtractor implements Closeable {
                 if (bibResults != null) {
                     for (String ref : referencesNPL) {
                         BiblioItem result = bibResults.get(k);
-                        if (result == null) {
+                        if (result == null || result.rejectAsReference()) {
                             k++;
                             continue;
                         }

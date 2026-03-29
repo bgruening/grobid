@@ -7,6 +7,7 @@ import org.grobid.core.layout.LayoutToken;
 import org.grobid.core.lexicon.Lexicon;
 import org.grobid.core.utilities.GrobidConfig;
 import org.grobid.core.utilities.GrobidProperties;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,6 +49,11 @@ public class CitationParserNullHandlingTest {
         Whitebox.setInternalState(GrobidProperties.class, "grobidConfig", config);
 
         target = new CitationParser(null, GrobidModels.DUMMY);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        Whitebox.setInternalState(GrobidProperties.class, "grobidConfig", (GrobidConfig) null);
     }
 
     @Test
@@ -95,5 +101,11 @@ public class CitationParserNullHandlingTest {
 
         String tei = empty.toTEI(0, config);
         assertThat(tei, is(notNullValue()));
+    }
+
+    @Test
+    public void emptyBiblioItem_isRejectedAsReference() {
+        BiblioItem empty = new BiblioItem();
+        assertThat(empty.rejectAsReference(), is(true));
     }
 }

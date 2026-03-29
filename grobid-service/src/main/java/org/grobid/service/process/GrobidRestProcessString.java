@@ -326,6 +326,7 @@ public class GrobidRestProcessString {
 			} else if (expectedResponseType == ExpectedResponseType.BIBTEX) {
 				StringBuilder responseContent = new StringBuilder();
 				int n = 0;
+				int appended = 0;
 				for(BiblioItem biblioItem : biblioItems) {
 					if (biblioItem == null) {
 						n++;
@@ -334,11 +335,16 @@ public class GrobidRestProcessString {
 					responseContent.append(biblioItem.toBibTeX(""+n, config));
 					responseContent.append("\n");
 					n++;
+					appended++;
 				}
-				response = Response.status(Status.OK)
-							.entity(responseContent.toString())
-							.header(HttpHeaders.CONTENT_TYPE, BibTexMediaType.MEDIA_TYPE + "; charset=UTF-8")
-							.build();
+				if (appended == 0) {
+					response = Response.status(Status.NO_CONTENT).build();
+				} else {
+					response = Response.status(Status.OK)
+								.entity(responseContent.toString())
+								.header(HttpHeaders.CONTENT_TYPE, BibTexMediaType.MEDIA_TYPE + "; charset=UTF-8")
+								.build();
+				}
 			} else {
 				StringBuilder responseContent = new StringBuilder();
 				// add some TEI envelop
@@ -348,6 +354,7 @@ public class GrobidRestProcessString {
                 responseContent.append("\t<teiHeader/>\n\t<text>\n\t\t<front/>\n\t\t" +
                     "<body/>\n\t\t<back>\n\t\t\t<div>\n\t\t\t\t<listBibl>\n");
 				int n = 0;
+				int appended = 0;
 				for(BiblioItem biblioItem : biblioItems) {
 					if (biblioItem == null) {
 						n++;
@@ -356,12 +363,17 @@ public class GrobidRestProcessString {
 					responseContent.append(biblioItem.toTEI(n, config));
 					responseContent.append("\n");
 					n++;
+					appended++;
 				}
-				responseContent.append("\t\t\t\t</listBibl>\n\t\t\t</div>\n\t\t</back>\n\t</text>\n</TEI>\n");
-				response = Response.status(Status.OK)
-                            .entity(responseContent.toString())
-                            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_XML + "; charset=UTF-8")
-                            .build();
+				if (appended == 0) {
+					response = Response.status(Status.NO_CONTENT).build();
+				} else {
+					responseContent.append("\t\t\t\t</listBibl>\n\t\t\t</div>\n\t\t</back>\n\t</text>\n</TEI>\n");
+					response = Response.status(Status.OK)
+								.entity(responseContent.toString())
+								.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_XML + "; charset=UTF-8")
+								.build();
+				}
 			}
 		} catch (NoSuchElementException nseExp) {
 			LOGGER.error("Could not get an engine from the pool within configured time. Sending service unavailable.");

@@ -108,7 +108,7 @@ public class CitationParser extends AbstractParser {
             int i = 0;
             for (BiblioItem result : results) {
                 if (result != null) {
-                    String localInput = inputs.get(i);
+                    String localInput = UnicodeUtil.normaliseText(inputs.get(i));
                     localInput = TextUtilities.removeLeadingAndTrailingChars(localInput, "[({.,])}: \n"," \n");
                     result.setReference(localInput);
                 }

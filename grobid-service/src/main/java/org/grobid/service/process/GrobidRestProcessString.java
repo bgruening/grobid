@@ -327,6 +327,10 @@ public class GrobidRestProcessString {
 				StringBuilder responseContent = new StringBuilder();
 				int n = 0;
 				for(BiblioItem biblioItem : biblioItems) {
+					if (biblioItem == null) {
+						n++;
+						continue;
+					}
 					responseContent.append(biblioItem.toBibTeX(""+n, config));
 					responseContent.append("\n");
 					n++;
@@ -345,6 +349,10 @@ public class GrobidRestProcessString {
                     "<body/>\n\t\t<back>\n\t\t\t<div>\n\t\t\t\t<listBibl>\n");
 				int n = 0;
 				for(BiblioItem biblioItem : biblioItems) {
+					if (biblioItem == null) {
+						n++;
+						continue;
+					}
 					responseContent.append(biblioItem.toTEI(n, config));
 					responseContent.append("\n");
 					n++;

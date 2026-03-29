@@ -176,6 +176,8 @@ public class Engine implements Closeable {
             // prepare for set consolidation
             List<BibDataSet> bibDataSetResults = new ArrayList<BibDataSet>();
             for (BiblioItem bib : results) {
+                if (bib == null)
+                    continue;
                 BibDataSet bds = new BibDataSet();
                 bds.setResBib(bib);
                 bds.setRawBib(bib.getReference());

@@ -3,6 +3,7 @@ package org.grobid.core.engines;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.collections4.CollectionUtils;
 
+import org.grobid.core.GrobidModel;
 import org.grobid.core.GrobidModels;
 import org.grobid.core.data.BibDataSet;
 import org.grobid.core.data.BiblioItem;
@@ -54,6 +55,11 @@ public class CitationParser extends AbstractParser {
 
     public CitationParser(EngineParsers parsers) {
         super(GrobidModels.CITATION);
+        this.parsers = parsers;
+    }
+
+    CitationParser(EngineParsers parsers, GrobidModel model) {
+        super(model);
         this.parsers = parsers;
     }
 
@@ -184,7 +190,7 @@ public class CitationParser extends AbstractParser {
         int i = 0;
         for (List<LayoutToken> tokens : tokenList) {
             if (CollectionUtils.isEmpty(tokens))
-                results.add(null);
+                results.add(new BiblioItem());
             else {
                 String res = resBlocks[i];
                 i++;

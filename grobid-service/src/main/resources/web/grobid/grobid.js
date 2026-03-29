@@ -150,7 +150,17 @@ var grobid = (function($) {
             beforeSubmit: ShowRequest1,
             success: SubmitSuccesful,
             error: AjaxError1,
-            dataType: "xml"
+            dataType: "xml",
+            beforeSerialize: function($form, options) {
+                var format = $('#format').val();
+                if (format === 'json') {
+                    options.dataType = 'json';
+                } else if (format === 'md') {
+                    options.dataType = 'text';
+                } else {
+                    options.dataType = 'xml';
+                }
+            }
         });
 
 		$('#submitRequest2').bind('click', submitQuery2);
@@ -348,22 +358,44 @@ var grobid = (function($) {
   	}
 
 	function SubmitSuccesful(responseText, statusText, xhr) {
-		//var selected = $('#selectedService option:selected').attr('value');
-		var display = "<pre class='prettyprint lang-xml' id='xmlCode'>";
-        var parsed = ""
-        if(responseText !== undefined) {
-            var toText = new XMLSerializer().serializeToString(responseText)
-            parsed = vkbeautify.xml(toText);
-            teiToDownload = toText;
-        }
-        
-		display += htmll(parsed);
+		var format = $('#format').val();
+		var display = "";
+		var parsed = "";
 
-		display += "</pre>";
+		if (format === 'json') {
+			// JSON response
+			display = "<pre class='prettyprint lang-json' id='xmlCode'>";
+			if (responseText !== undefined) {
+				parsed = JSON.stringify(responseText, null, 2);
+				teiToDownload = parsed;
+			}
+			display += htmll(parsed);
+			display += "</pre>";
+		} else if (format === 'md') {
+			// Markdown response
+			display = "<pre id='xmlCode'>";
+			if (responseText !== undefined) {
+				parsed = responseText;
+				teiToDownload = parsed;
+			}
+			display += htmll(parsed);
+			display += "</pre>";
+		} else {
+			// TEI XML response (default)
+			display = "<pre class='prettyprint lang-xml' id='xmlCode'>";
+			if (responseText !== undefined) {
+				var toText = new XMLSerializer().serializeToString(responseText);
+				parsed = vkbeautify.xml(toText);
+				teiToDownload = toText;
+			}
+			display += htmll(parsed);
+			display += "</pre>";
+		}
+
 		$('#requestResult').html(display);
 		window.prettyPrint && prettyPrint();
 		$('#requestResult').show();
-        $("#btn_download").show();
+		$("#btn_download").show();
 	}
 
     function submitQuery2() {
@@ -1483,6 +1515,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').hide();
             $('#teiCoordinatesBlock').hide();
             $('#flavorBlock').hide();
+            $('#formatBlock').show();
 			setBaseUrl('processHeaderDocument');
 		}
 		else if (selected == 'processFulltextDocument') {
@@ -1495,6 +1528,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').show();
             $('#teiCoordinatesBlock').show();
             $('#flavorBlock').show();
+            $('#formatBlock').show();
 			setBaseUrl('processFulltextDocument');
 		}
 		else if (selected == 'processDate') {
@@ -1507,6 +1541,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').hide();
             $('#teiCoordinatesBlock').hide();
             $('#flavorBlock').hide();
+            $('#formatBlock').hide();
 			setBaseUrl('processDate');
 		}
 		else if (selected == 'processHeaderNames') {
@@ -1519,6 +1554,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').hide();
             $('#teiCoordinatesBlock').hide();
             $('#flavorBlock').hide();
+            $('#formatBlock').hide();
 			setBaseUrl('processHeaderNames');
 		}
 		else if (selected == 'processCitationNames') {
@@ -1531,6 +1567,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').hide();
             $('#teiCoordinatesBlock').hide();
             $('#flavorBlock').hide();
+            $('#formatBlock').hide();
 			setBaseUrl('processCitationNames');
 		}
 		else if (selected == 'processReferences') {
@@ -1543,6 +1580,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').hide();
             $('#teiCoordinatesBlock').hide();
             $('#flavorBlock').hide();
+            $('#formatBlock').show();
 			setBaseUrl('processReferences');
 		}
 		else if (selected == 'processAffiliations') {
@@ -1555,6 +1593,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').hide();
             $('#teiCoordinatesBlock').hide();
             $('#flavorBlock').hide();
+            $('#formatBlock').hide();
 			setBaseUrl('processAffiliations');
 		}
 		else if (selected == 'processCitation') {
@@ -1567,6 +1606,7 @@ var grobid = (function($) {
             $('#segmentSentencesBlock').hide();
             $('#teiCoordinatesBlock').hide();
             $('#flavorBlock').hide();
+            $('#formatBlock').hide();
 			setBaseUrl('processCitation');
 		}
 		/*else if (selected == 'processCitationPatentTEI') {
@@ -1678,10 +1718,21 @@ var grobid = (function($) {
              name = document.getElementById("input").files[0].name;
         }
 
-		var fileName = name + ".tei.xml";
+		var format = $('#format').val();
+		var fileName, mimeType;
+		if (format === 'json') {
+			fileName = name + ".json";
+			mimeType = 'application/json';
+		} else if (format === 'md') {
+			fileName = name + ".md";
+			mimeType = 'text/markdown';
+		} else {
+			fileName = name + ".tei.xml";
+			mimeType = 'application/xml';
+		}
 	    var a = document.createElement("a");
 
-	    var file = new Blob([teiToDownload], {type: 'application/xml'});
+	    var file = new Blob([teiToDownload], {type: mimeType});
 	    var fileURL = URL.createObjectURL(file);
 	    a.href = fileURL;
 	    a.download = fileName;

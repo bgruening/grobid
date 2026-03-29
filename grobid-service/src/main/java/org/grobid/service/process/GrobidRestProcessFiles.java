@@ -28,6 +28,9 @@ import org.grobid.core.data.BiblioItem;
 import org.grobid.core.data.PatentItem;
 import org.grobid.core.document.Document;
 import org.grobid.core.document.DocumentSource;
+import org.grobid.core.document.formatter.JSONDocumentFormatter;
+import org.grobid.core.document.formatter.MarkdownDocumentFormatter;
+import org.grobid.core.document.model.GrobidDocument;
 import org.grobid.core.engines.Engine;
 import org.grobid.core.engines.config.GrobidAnalysisConfig;
 import org.grobid.core.factory.GrobidPoolingFactory;
@@ -41,6 +44,7 @@ import org.grobid.service.exceptions.GrobidServiceException;
 import org.grobid.service.util.BibTexMediaType;
 import org.grobid.service.util.ExpectedResponseType;
 import org.grobid.service.util.GrobidRestUtils;
+import org.grobid.service.util.MarkdownMediaType;
 
 /**
  * Web services consuming a file
@@ -296,6 +300,40 @@ public class GrobidRestProcessFiles {
             final boolean generateIDs,
             final boolean segmentSentences,
             final List<String> teiCoordinates) throws Exception {
+        return processFulltextDocument(
+                inputStream,
+                flavor,
+                consolidateHeader,
+                consolidateCitations,
+                consolidateFunders,
+                includeRawAffiliations,
+                includeRawCitations,
+                includeRawCopyrights,
+                includeDiscardedText,
+                startPage,
+                endPage,
+                generateIDs,
+                segmentSentences,
+                teiCoordinates,
+                ExpectedResponseType.XML);
+    }
+
+    public Response processFulltextDocument(
+            final InputStream inputStream,
+            final GrobidModels.Flavor flavor,
+            final int consolidateHeader,
+            final int consolidateCitations,
+            final int consolidateFunders,
+            final boolean includeRawAffiliations,
+            final boolean includeRawCitations,
+            final boolean includeRawCopyrights,
+            final boolean includeDiscardedText,
+            final int startPage,
+            final int endPage,
+            final boolean generateIDs,
+            final boolean segmentSentences,
+            final List<String> teiCoordinates,
+            final ExpectedResponseType expectedResponseType) throws Exception {
         LOGGER.debug(methodLogIn());
 
         String retVal = null;
@@ -340,14 +378,36 @@ public class GrobidRestProcessFiles {
                     .flavor(flavor)
                     .build();
 
-            retVal = engine.fullTextToTEI(originFile, flavor, md5Str, config);
+            // For JSON and Markdown, we need the Document object with the data model
+            String contentType;
+            if (expectedResponseType == ExpectedResponseType.JSON
+                    || expectedResponseType == ExpectedResponseType.MARKDOWN) {
+                Document resultDoc = engine.fullTextToTEIDoc(originFile, flavor, md5Str, config);
+                GrobidDocument grobidDoc = resultDoc.getGrobidDocument();
+                if (grobidDoc != null) {
+                    if (expectedResponseType == ExpectedResponseType.JSON) {
+                        retVal = new JSONDocumentFormatter().format(grobidDoc);
+                        contentType = MediaType.APPLICATION_JSON;
+                    } else {
+                        retVal = new MarkdownDocumentFormatter().format(grobidDoc);
+                        contentType = MarkdownMediaType.MEDIA_TYPE;
+                    }
+                } else {
+                    // Fallback: GrobidDocument not yet populated, return TEI
+                    retVal = resultDoc.getTei();
+                    contentType = MediaType.APPLICATION_XML;
+                }
+            } else {
+                retVal = engine.fullTextToTEI(originFile, flavor, md5Str, config);
+                contentType = MediaType.APPLICATION_XML;
+            }
 
             if (GrobidRestUtils.isResultNullOrEmpty(retVal)) {
                 response = Response.status(Response.Status.NO_CONTENT).build();
             } else {
                 response = Response.status(Response.Status.OK)
                         .entity(retVal)
-                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_XML + "; charset=UTF-8")
+                        .header(HttpHeaders.CONTENT_TYPE, contentType + "; charset=UTF-8")
                         .build();
             }
         } catch (NoSuchElementException nseExp) {

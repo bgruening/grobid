@@ -1296,6 +1296,17 @@ public class TEIFormatter {
         return notes;
     }
 
+    /**
+     * Static entry point for note extraction, callable from {@link DocumentStructureBuilder}.
+     */
+    static List<Note> makeNotesStatic(
+            List<LayoutToken> noteTokens,
+            String footText,
+            Note.NoteType noteType,
+            int startIndex) {
+        return new TEIFormatter(null, null).makeNotes(noteTokens, footText, noteType, startIndex);
+    }
+
     protected List<Note> makeNotes(
             List<LayoutToken> noteTokens,
             String footText,

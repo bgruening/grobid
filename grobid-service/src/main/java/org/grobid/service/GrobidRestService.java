@@ -267,7 +267,7 @@ public class GrobidRestService implements GrobidPaths {
 
     @Path(PATH_FULL_TEXT)
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.APPLICATION_XML)
+    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, "text/markdown"})
     @POST
     public Response processFulltextDocument_post(
             @FormDataParam(INPUT) InputStream inputStream,
@@ -283,7 +283,8 @@ public class GrobidRestService implements GrobidPaths {
             @DefaultValue("-1") @FormDataParam("end") int endPage,
             @FormDataParam("generateIDs") String generateIDs,
             @FormDataParam("segmentSentences") String segmentSentences,
-            @FormDataParam("teiCoordinates") List<FormDataBodyPart> coordinates) throws Exception {
+            @FormDataParam("teiCoordinates") List<FormDataBodyPart> coordinates,
+            @FormDataParam("format") String format) throws Exception {
         return processFulltext(
                 inputStream,
                 flavor,
@@ -298,12 +299,13 @@ public class GrobidRestService implements GrobidPaths {
                 endPage,
                 generateIDs,
                 segmentSentences,
-                coordinates);
+                coordinates,
+                format);
     }
 
     @Path(PATH_FULL_TEXT)
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.APPLICATION_XML)
+    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, "text/markdown"})
     @PUT
     public Response processFulltextDocument(
             @FormDataParam(INPUT) InputStream inputStream,
@@ -319,7 +321,8 @@ public class GrobidRestService implements GrobidPaths {
             @DefaultValue("-1") @FormDataParam("end") int endPage,
             @FormDataParam("generateIDs") String generateIDs,
             @FormDataParam("segmentSentences") String segmentSentences,
-            @FormDataParam("teiCoordinates") List<FormDataBodyPart> coordinates) throws Exception {
+            @FormDataParam("teiCoordinates") List<FormDataBodyPart> coordinates,
+            @FormDataParam("format") String format) throws Exception {
         return processFulltext(
                 inputStream,
                 flavor,
@@ -334,7 +337,8 @@ public class GrobidRestService implements GrobidPaths {
                 endPage,
                 generateIDs,
                 segmentSentences,
-                coordinates);
+                coordinates,
+                format);
     }
 
     private Response processFulltext(
@@ -351,7 +355,8 @@ public class GrobidRestService implements GrobidPaths {
             int endPage,
             String generateIDs,
             String segmentSentences,
-            List<FormDataBodyPart> coordinates) throws Exception {
+            List<FormDataBodyPart> coordinates,
+            String format) throws Exception {
         int consolHeader = validateConsolidationParam(consolidateHeader);
         int consolCitations = validateConsolidationParam(consolidateCitations);
         int consolFunders = validateConsolidationParam(consolidateFunders);
@@ -386,7 +391,8 @@ public class GrobidRestService implements GrobidPaths {
                 endPage,
                 generate,
                 segment,
-                teiCoordinates);
+                teiCoordinates,
+                ExpectedResponseType.fromString(format));
     }
 
     private GrobidModels.Flavor validateModelFlavor(String flavor) {

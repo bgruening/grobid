@@ -192,6 +192,14 @@
                                                         <option value="article/light-ref">Light with references</option>
                                                     </select>
                                                 </td>
+                                                <td class="checkbox" id="formatBlock" style="display: none;">
+                                                    Output:
+                                                    <select id="format" name="format">
+                                                        <option value="" selected>TEI XML</option>
+                                                        <option value="json">JSON</option>
+                                                        <option value="md">Markdown</option>
+                                                    </select>
+                                                </td>
 											</tr>
 										</table>
 									</div>
@@ -226,7 +234,7 @@
 						</tr>
 						<tr>
 							<td>&nbsp;</td><td colspan="2"><input id="submitRequest" type="submit" value="Submit" class="btn btn-success"/>
-							<input id="btn_download" class="btn" value="Download TEI Result"/></td>
+							<input id="btn_download" class="btn" value="Download Result"/></td>
 						</tr>
 			        </table>
 				</form>

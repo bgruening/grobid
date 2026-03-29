@@ -110,6 +110,9 @@ public class Document implements Serializable {
     // full text as structure TEI - if extracted and processed
     protected String tei;
 
+    // structured data model for multi-format output (TEI, JSON, Markdown)
+    protected transient org.grobid.core.document.model.GrobidDocument grobidDocument;
+
     protected transient ReferenceMarkerMatcher referenceMarkerMatcher;
 
     public void setImages(List<GraphicObject> images) {
@@ -686,6 +689,14 @@ public class Document implements Serializable {
 
     public void setTei(String tei) {
         this.tei = tei;
+    }
+
+    public org.grobid.core.document.model.GrobidDocument getGrobidDocument() {
+        return grobidDocument;
+    }
+
+    public void setGrobidDocument(org.grobid.core.document.model.GrobidDocument grobidDocument) {
+        this.grobidDocument = grobidDocument;
     }
 
     public List<Integer> getBlockDocumentHeaders() {

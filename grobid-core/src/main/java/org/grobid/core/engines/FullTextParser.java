@@ -12,6 +12,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.grobid.core.GrobidModels;
 import org.grobid.core.data.*;
 import org.grobid.core.document.*;
+import org.grobid.core.document.model.GrobidDocument;
 import org.grobid.core.engines.citations.CalloutAnalyzer;
 import org.grobid.core.engines.citations.CalloutAnalyzer.MarkerType;
 import org.grobid.core.engines.citations.LabeledReferenceResult;
@@ -2941,10 +2942,10 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
         List<BibDataSet> resCitations = doc.getBibDataSets();
         TEIFormatter teiFormatter = new TEIFormatter(doc, this);
         StringBuilder tei = new StringBuilder();
+        List<Funding> fundings = new ArrayList<>();
+        List<Affiliation> affiliations = new ArrayList<>();
+        List<Affiliation> filteredInfrastructures = new ArrayList<>();
         try {
-            List<Funding> fundings = new ArrayList<>();
-            List<Affiliation> affiliations = new ArrayList<>();
-
             List<String> annexStatements = new ArrayList<>();
 
             // acknowledgement is in the back
@@ -3102,7 +3103,7 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
             if (CollectionUtils.isNotEmpty(affiliations)) {
 
                 // check if we have at least one acknowledged research infrastructure here
-                List<Affiliation> filteredInfrastructures = new ArrayList<>();
+                filteredInfrastructures.clear();
                 for (Affiliation affiliation : affiliations) {
                     if (affiliation.getAffiliationString() != null && affiliation.getAffiliationString().length() > 0 && affiliation.isInfrastructure())
                         filteredInfrastructures.add(affiliation);
@@ -3262,12 +3263,28 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
         }
         doc.setTei(tei.toString());
 
-        //TODO: reevaluate
-//		doc.setTei(
-//				XmlBuilderUtils.toPrettyXml(
-//						XmlBuilderUtils.fromString(tei.toString())
-//				)
-//		);
+        // Build the GrobidDocument data model alongside TEI for multi-format output
+        try {
+            DocumentStructureBuilder structureBuilder = new DocumentStructureBuilder();
+            GrobidDocument grobidDoc = structureBuilder.build(
+                doc, bodyLabellingResult, annexLabellingResult,
+                layoutTokenization, tokenizationsAnnex,
+                resHeader,
+                bodyFigures, bodyTables, bodyEquations,
+                annexFigures, annexTables, annexEquations,
+                markerTypes, config
+            );
+
+            // Populate back-matter data extracted during TEI generation
+            grobidDoc.setFundings(fundings);
+            grobidDoc.setAcknowledgedAffiliations(affiliations);
+            grobidDoc.setAcknowledgedInfrastructures(filteredInfrastructures);
+            grobidDoc.setMd5(doc.getMD5());
+
+            doc.setGrobidDocument(grobidDoc);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to build GrobidDocument data model", e);
+        }
     }
 
     /**
@@ -3284,6 +3301,7 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
         try {
             List<Funding> fundings = new ArrayList<>();
             List<Affiliation> affiliations = new ArrayList<>();
+            List<Affiliation> filteredInfrastructures = new ArrayList<>();
 
             List<String> annexStatements = new ArrayList<>();
 
@@ -3421,7 +3439,7 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
             if (CollectionUtils.isNotEmpty(affiliations)) {
 
                 // check if we have at least one acknowledged research infrastructure here
-                List<Affiliation> filteredInfrastructures = new ArrayList<>();
+                filteredInfrastructures.clear();
                 for (Affiliation affiliation : affiliations) {
                     if (affiliation.getAffiliationString() != null && affiliation.getAffiliationString().length() > 0 && affiliation.isInfrastructure())
                         filteredInfrastructures.add(affiliation);

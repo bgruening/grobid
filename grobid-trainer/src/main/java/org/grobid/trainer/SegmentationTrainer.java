@@ -1,10 +1,8 @@
 package org.grobid.trainer;
 
-import net.sf.saxon.lib.SaxonOutputKeys;
 import org.grobid.core.GrobidModels;
 import org.grobid.core.GrobidModels.Flavor;
 import org.grobid.core.exceptions.GrobidException;
-import org.grobid.core.utilities.GrobidProperties;
 import org.grobid.core.utilities.UnicodeUtil;
 import org.grobid.trainer.sax.TEISegmentationArticleLightRefSaxParser;
 import org.grobid.trainer.sax.TEISegmentationArticleLightSaxParser;

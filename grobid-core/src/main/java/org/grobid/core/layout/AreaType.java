@@ -6,7 +6,8 @@ package org.grobid.core.layout;
 public enum AreaType {
     FIGURE("figure"),
     TABLE("table"),
-    IGNORE("ignore");
+    IGNORE("ignore"),
+    PARATEXT("paratext");
 
     private final String value;
 

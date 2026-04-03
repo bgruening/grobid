@@ -8,6 +8,7 @@ Instead of relying solely on automatic detection, you can pre-identify areas con
 - **Figures** - processed with specialized figure model
 - **Tables** - processed with specialized table model
 - **Ignored content** - completely excluded from processing
+- **Paratext** - auxiliary content (headers, footers, page numbers) excluded from body processing
 
 ## Supported Endpoints
 
@@ -63,7 +64,7 @@ The `typedAreas` parameter is supported by the following endpoints:
 - **`y`** (number, required): Y-coordinate of upper-left corner in points
 - **`width`** (number, required): Width of the area in points
 - **`height`** (number, required): Height of the area in points
-- **`type`** (string, required): Area type - `"figure"`, `"table"`, or `"ignore"`
+- **`type`** (string, required): Area type - `"figure"`, `"table"`, `"ignore"`, or `"paratext"`
 
 ## Area Types and Processing
 
@@ -101,10 +102,19 @@ The `typedAreas` parameter is supported by the following endpoints:
 - Content excluded from all model processing
 
 **Use Cases**:
-- Headers, footers, and page numbers
 - Watermarks or background elements
-- Marginalia or annotations
 - Advertisements or irrelevant content
+
+### Paratext Areas (`"type": "paratext"`)
+
+**Processing**:
+- Tokens within paratext areas are excluded from body text processing
+- Behaves similarly to ignore areas but semantically identifies auxiliary document content
+
+**Use Cases**:
+- Headers, footers, and page numbers
+- Running titles and section markers
+- Marginalia or annotations
 
 ## Coordinate System
 

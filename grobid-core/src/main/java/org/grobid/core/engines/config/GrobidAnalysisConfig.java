@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 import org.grobid.core.GrobidModels;
 import org.grobid.core.analyzers.Analyzer;
-import org.grobid.core.layout.IgnoreArea;
+import org.grobid.core.layout.TypedArea;
 
 /**
  * A class representing the runtime configuration values needed in the analysis chain
@@ -97,7 +97,7 @@ public class GrobidAnalysisConfig {
     private boolean withSentenceSegmentation = false;
 
     // list of typed areas for specialized processing
-    private List<IgnoreArea> typedAreas = null;
+    private List<TypedArea> typedAreas = null;
 
     public boolean isIncludeDiscardedText() {
         return includeDiscardedText;
@@ -220,7 +220,7 @@ public class GrobidAnalysisConfig {
             return this;
         }
 
-        public GrobidAnalysisConfigBuilder typedAreas(List<IgnoreArea> areas) {
+        public GrobidAnalysisConfigBuilder typedAreas(List<TypedArea> areas) {
             config.typedAreas = areas;
             return this;
         }
@@ -352,11 +352,11 @@ public class GrobidAnalysisConfig {
         return flavor;
     }
 
-    public List<IgnoreArea> getTypedAreas() {
+    public List<TypedArea> getTypedAreas() {
         return typedAreas;
     }
 
-    public void setTypedAreas(List<IgnoreArea> typedAreas) {
+    public void setTypedAreas(List<TypedArea> typedAreas) {
         this.typedAreas = typedAreas;
     }
 }

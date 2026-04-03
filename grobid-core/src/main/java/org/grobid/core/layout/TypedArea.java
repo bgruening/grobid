@@ -4,18 +4,18 @@ package org.grobid.core.layout;
  * Represents a typed area in a PDF document for specialized processing.
  * This includes areas containing figures, tables, or content to be ignored.
  */
-public class IgnoreArea {
+public class TypedArea {
     private int page;           // page number (1-based, following PDF convention)
     private double x;           // x-coordinate of upper-left corner
     private double y;           // y-coordinate of upper-left corner
     private double width;       // width of the area
     private double height;      // height of the area
-    private AreaType type;      // type: figure, table, ignore
+    private AreaType type;      // type: figure, table, ignore, paratext
 
-    public IgnoreArea() {
+    public TypedArea() {
     }
 
-    public IgnoreArea(int page, double x, double y, double width, double height, AreaType type) {
+    public TypedArea(int page, double x, double y, double width, double height, AreaType type) {
         this.page = page;
         this.x = x;
         this.y = y;
@@ -26,23 +26,23 @@ public class IgnoreArea {
 
     /**
      * Legacy constructor for backward compatibility.
-     * @deprecated Use {@link #IgnoreArea(int, double, double, double, double, AreaType)} instead.
+     * @deprecated Use {@link #TypedArea(int, double, double, double, double, AreaType)} instead.
      */
     @Deprecated
-    public IgnoreArea(int page, double x, double y, double width, double height, String name) {
+    public TypedArea(int page, double x, double y, double width, double height, String name) {
         this.page = page;
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         // Convert string name to AreaType for backward compatibility
-        this.type = name != null ? AreaType.fromString(name.toLowerCase()) : AreaType.IGNORE;
+        this.type = name != null ? AreaType.fromString(name.toLowerCase()) : AreaType.PARATEXT;
     }
 
     /**
-     * Creates an IgnoreArea from a coordinate string in the format: "page,x,y,width,height,type"
+     * Creates an TypedArea from a coordinate string in the format: "page,x,y,width,height,type"
      */
-    public static IgnoreArea fromCoordinates(String coordString) {
+    public static TypedArea fromCoordinates(String coordString) {
         String[] parts = coordString.split(",");
         if (parts.length < 6) {
             throw new IllegalArgumentException("Invalid coordinate string format. Expected: page,x,y,width,height,type");
@@ -56,17 +56,17 @@ public class IgnoreArea {
             double height = Double.parseDouble(parts[4].trim());
             AreaType type = AreaType.fromString(parts[5].trim());
 
-            return new IgnoreArea(page, x, y, width, height, type);
+            return new TypedArea(page, x, y, width, height, type);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid numeric values in coordinate string: " + coordString, e);
         }
     }
 
     /**
-     * Checks if a LayoutToken falls within or intersects with this ignore area.
+     * Checks if a LayoutToken falls within or intersects with this typed area.
      *
      * @param token the LayoutToken to check
-     * @return true if the token intersects with this ignore area
+     * @return true if the token intersects with this typed area
      */
     public boolean contains(LayoutToken token) {
         if (token.getPage() != this.page) {
@@ -91,9 +91,9 @@ public class IgnoreArea {
     }
 
     /**
-     * Creates an IgnoreArea from a coordinate string in the format: "page,x,y,width,height,name"
+     * Creates an TypedArea from a coordinate string in the format: "page,x,y,width,height,name"
      */
-    public static IgnoreArea fromString(String coordString) {
+    public static TypedArea fromString(String coordString) {
         String[] parts = coordString.split(",");
         if (parts.length < 5) {
             throw new IllegalArgumentException("Invalid coordinate string format. Expected: page,x,y,width,height[,name]");
@@ -107,7 +107,7 @@ public class IgnoreArea {
             double height = Double.parseDouble(parts[4].trim());
             String name = parts.length > 5 ? parts[5].trim() : "";
 
-            return new IgnoreArea(page, x, y, width, height, name);
+            return new TypedArea(page, x, y, width, height, name);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid numeric values in coordinate string: " + coordString, e);
         }
@@ -177,12 +177,12 @@ public class IgnoreArea {
      */
     @Deprecated
     public void setName(String name) {
-        this.type = name != null ? AreaType.fromString(name.toLowerCase()) : AreaType.IGNORE;
+        this.type = name != null ? AreaType.fromString(name.toLowerCase()) : AreaType.PARATEXT;
     }
 
     @Override
     public String toString() {
-        return String.format("IgnoreArea{page=%d, x=%.2f, y=%.2f, width=%.2f, height=%.2f, type='%s'}",
+        return String.format("TypedArea{page=%d, x=%.2f, y=%.2f, width=%.2f, height=%.2f, type='%s'}",
                            page, x, y, width, height, type != null ? type.getValue() : "null");
     }
 
@@ -191,7 +191,7 @@ public class IgnoreArea {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
 
-        IgnoreArea that = (IgnoreArea) obj;
+        TypedArea that = (TypedArea) obj;
         return page == that.page &&
                Double.compare(that.x, x) == 0 &&
                Double.compare(that.y, y) == 0 &&

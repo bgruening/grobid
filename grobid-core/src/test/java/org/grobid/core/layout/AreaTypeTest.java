@@ -26,11 +26,19 @@ public class AreaTypeTest {
     }
 
     @Test
+    public void testFromString_paratext() {
+        AreaType type = AreaType.fromString("paratext");
+        assertThat(type, is(AreaType.PARATEXT));
+    }
+
+    @Test
     public void testFromString_caseInsensitive() {
         assertThat(AreaType.fromString("FIGURE"), is(AreaType.FIGURE));
         assertThat(AreaType.fromString("TABLE"), is(AreaType.TABLE));
         assertThat(AreaType.fromString("IGNORE"), is(AreaType.IGNORE));
+        assertThat(AreaType.fromString("PARATEXT"), is(AreaType.PARATEXT));
         assertThat(AreaType.fromString("Figure"), is(AreaType.FIGURE));
+        assertThat(AreaType.fromString("Paratext"), is(AreaType.PARATEXT));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -43,5 +51,6 @@ public class AreaTypeTest {
         assertThat(AreaType.FIGURE.getValue(), is("figure"));
         assertThat(AreaType.TABLE.getValue(), is("table"));
         assertThat(AreaType.IGNORE.getValue(), is("ignore"));
+        assertThat(AreaType.PARATEXT.getValue(), is("paratext"));
     }
 }

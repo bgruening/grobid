@@ -152,7 +152,7 @@ public class GrobidRestService implements GrobidPaths {
         @DefaultValue("2") @FormDataParam("end") int endPage,
         @FormDataParam("typedAreas") String typedAreas) {
         int consol = validateConsolidationParam(consolidate);
-        List<org.grobid.core.layout.IgnoreArea> typedAreasList = parseTypedAreas(typedAreas);
+        List<org.grobid.core.layout.TypedArea> typedAreasList = parseTypedAreas(typedAreas);
         return restProcessFiles.processStatelessHeaderDocument(
             inputStream, consol,
             validateIncludeRawParam(includeRawAffiliations),
@@ -179,7 +179,7 @@ public class GrobidRestService implements GrobidPaths {
         @FormDataParam("typedAreas") String typedAreas) {
         int consolHeader = validateConsolidationParam(consolidateHeader);
         int consolFunders = validateConsolidationParam(consolidateFunders);
-        List<org.grobid.core.layout.IgnoreArea> typedAreasList = parseTypedAreas(typedAreas);
+        List<org.grobid.core.layout.TypedArea> typedAreasList = parseTypedAreas(typedAreas);
         return restProcessFiles.processStatelessHeaderFundingDocument(
             inputStream, consolHeader, consolFunders,
             validateIncludeRawParam(includeRawAffiliations),
@@ -228,7 +228,7 @@ public class GrobidRestService implements GrobidPaths {
         @DefaultValue("2") @FormDataParam("end") int endPage,
         @FormDataParam("typedAreas") String typedAreas) {
         int consol = validateConsolidationParam(consolidate);
-        List<org.grobid.core.layout.IgnoreArea> typedAreasList = parseTypedAreas(typedAreas);
+        List<org.grobid.core.layout.TypedArea> typedAreasList = parseTypedAreas(typedAreas);
         return restProcessFiles.processStatelessHeaderDocument(
             inputStream,
             consol,
@@ -346,7 +346,7 @@ public class GrobidRestService implements GrobidPaths {
         GrobidModels.Flavor flavorValidated = validateModelFlavor(flavor);
 
         List<String> teiCoordinates = collectCoordinates(coordinates);
-        List<org.grobid.core.layout.IgnoreArea> typedAreasList = parseTypedAreas(typedAreas);
+        List<org.grobid.core.layout.TypedArea> typedAreasList = parseTypedAreas(typedAreas);
 
         if (flavorValidated == BLANK) {
             return restProcessFiles.processFulltextDocumentBlank(
@@ -384,8 +384,8 @@ public class GrobidRestService implements GrobidPaths {
         return teiCoordinates;
     }
 
-    private List<org.grobid.core.layout.IgnoreArea> parseTypedAreas(String typedAreasJson) {
-        List<org.grobid.core.layout.IgnoreArea> typedAreasList = new ArrayList<>();
+    private List<org.grobid.core.layout.TypedArea> parseTypedAreas(String typedAreasJson) {
+        List<org.grobid.core.layout.TypedArea> typedAreasList = new ArrayList<>();
 
         if (typedAreasJson == null || typedAreasJson.trim().isEmpty()) {
             return typedAreasList;
@@ -405,7 +405,7 @@ public class GrobidRestService implements GrobidPaths {
                         double width = node.get("width").asDouble();
                         double height = node.get("height").asDouble();
 
-                        // New format: "type" field is required and should be "figure", "table", or "ignore"
+                        // New format: "type" field is required and should be "figure", "table", "ignore", or "paratext"
                         if (!node.has("type")) {
                             LOGGER.warn("Typed area missing required 'type' field: " + node.toString());
                             continue;
@@ -415,8 +415,8 @@ public class GrobidRestService implements GrobidPaths {
                         org.grobid.core.layout.AreaType areaType =
                             org.grobid.core.layout.AreaType.fromString(typeString);
 
-                        org.grobid.core.layout.IgnoreArea area =
-                            new org.grobid.core.layout.IgnoreArea(page, x, y, width, height, areaType);
+                        org.grobid.core.layout.TypedArea area =
+                            new org.grobid.core.layout.TypedArea(page, x, y, width, height, areaType);
                         typedAreasList.add(area);
                     } catch (Exception e) {
                         LOGGER.warn("Failed to parse typed area from JSON: " + node.toString(), e);
@@ -432,7 +432,7 @@ public class GrobidRestService implements GrobidPaths {
         if (!typedAreasList.isEmpty()) {
             Map<AreaType, Long> countsByType = typedAreasList.stream()
                 .collect(java.util.stream.Collectors.groupingBy(
-                    org.grobid.core.layout.IgnoreArea::getType,
+                    org.grobid.core.layout.TypedArea::getType,
                     java.util.stream.Collectors.counting()));
             LOGGER.info("Received {} typed areas: {}", typedAreasList.size(), countsByType);
         }
@@ -539,7 +539,7 @@ public class GrobidRestService implements GrobidPaths {
         boolean generate = validateGenerateIdParam(generateIDs);
         boolean segment = validateGenerateIdParam(segmentSentences);
         List<String> teiCoordinates = collectCoordinates(coordinates);
-        List<org.grobid.core.layout.IgnoreArea> typedAreasList = parseTypedAreas(typedAreas);
+        List<org.grobid.core.layout.TypedArea> typedAreasList = parseTypedAreas(typedAreas);
         GrobidModels.Flavor validatedModelFlavor = validateModelFlavor(flavor);
 
         return restProcessFiles.processStatelessFulltextAssetDocument(

@@ -4007,8 +4007,8 @@ System.out.println("majorityEquationarkerType: " + majorityEquationarkerType);*/
                 doc.setAnnexTables(new ArrayList<>());
             }
 
-            for (Map.Entry<IgnoreArea, List<LayoutToken>> entry : doc.getTableTokensByArea().entrySet()) {
-                IgnoreArea area = entry.getKey();
+            for (Map.Entry<TypedArea, List<LayoutToken>> entry : doc.getTableTokensByArea().entrySet()) {
+                TypedArea area = entry.getKey();
                 List<LayoutToken> areaTokens = entry.getValue();
                 if (areaTokens.isEmpty()) {
                     continue;

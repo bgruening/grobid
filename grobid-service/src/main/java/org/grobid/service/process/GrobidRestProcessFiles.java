@@ -111,7 +111,7 @@ public class GrobidRestProcessFiles {
         final boolean includeDiscardedText,
         int startPage,
         int endPage,
-        final List<org.grobid.core.layout.IgnoreArea> typedAreas,
+        final List<org.grobid.core.layout.TypedArea> typedAreas,
         ExpectedResponseType expectedResponseType
     ) {
         LOGGER.debug(methodLogIn());
@@ -210,7 +210,7 @@ public class GrobidRestProcessFiles {
         final boolean includeRawAffiliations,
         final boolean includeRawCopyrights,
         final boolean includeDiscardedText,
-        final List<org.grobid.core.layout.IgnoreArea> typedAreas
+        final List<org.grobid.core.layout.TypedArea> typedAreas
     ) {
         LOGGER.debug(methodLogIn());
         String retVal = null;
@@ -315,7 +315,7 @@ public class GrobidRestProcessFiles {
                                         final boolean generateIDs,
                                         final boolean segmentSentences,
                                         final List<String> teiCoordinates,
-                                        final List<org.grobid.core.layout.IgnoreArea> typedAreas) throws Exception {
+                                        final List<org.grobid.core.layout.TypedArea> typedAreas) throws Exception {
         LOGGER.debug(methodLogIn());
 
         String retVal = null;
@@ -496,7 +496,7 @@ public class GrobidRestProcessFiles {
         final boolean generateIDs,
         final boolean segmentSentences,
         final List<String> teiCoordinates,
-        final List<org.grobid.core.layout.IgnoreArea> typedAreas
+        final List<org.grobid.core.layout.TypedArea> typedAreas
     ) throws Exception {
 
         LOGGER.debug(methodLogIn());

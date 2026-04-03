@@ -27,7 +27,7 @@ import org.grobid.core.layout.BoundingBox;
 import org.grobid.core.layout.Cluster;
 import org.grobid.core.layout.GraphicObject;
 import org.grobid.core.layout.GraphicObjectType;
-import org.grobid.core.layout.IgnoreArea;
+import org.grobid.core.layout.TypedArea;
 import org.grobid.core.layout.AreaType;
 import org.grobid.core.layout.LayoutToken;
 import org.grobid.core.layout.PDFAnnotation;
@@ -163,14 +163,14 @@ public class Document implements Serializable {
     protected transient List<Equation> annexEquations;
 
     // typed areas for specialized processing
-    protected transient List<IgnoreArea> figureAreas = new ArrayList<>();
-    protected transient List<IgnoreArea> tableAreas = new ArrayList<>();
-    protected transient List<IgnoreArea> ignoredAreas = new ArrayList<>();
+    protected transient List<TypedArea> figureAreas = new ArrayList<>();
+    protected transient List<TypedArea> tableAreas = new ArrayList<>();
+    protected transient List<TypedArea> ignoredAreas = new ArrayList<>();
 
     // tokens extracted from typed areas for specialized processing
     protected transient List<LayoutToken> figureTokens = new ArrayList<>();
     protected transient List<LayoutToken> tableTokens = new ArrayList<>();
-    protected transient Map<IgnoreArea, List<LayoutToken>> tableTokensByArea = new LinkedHashMap<>();
+    protected transient Map<TypedArea, List<LayoutToken>> tableTokensByArea = new LinkedHashMap<>();
     protected transient List<LayoutToken> ignoredTokens = new ArrayList<>();
 
     // tokens that fall within typed areas and should be excluded from body processing
@@ -1725,27 +1725,27 @@ public class Document implements Serializable {
     }
 
     // Typed area getters and setters
-    public List<IgnoreArea> getFigureAreas() {
+    public List<TypedArea> getFigureAreas() {
         return figureAreas;
     }
 
-    public void setFigureAreas(List<IgnoreArea> figureAreas) {
+    public void setFigureAreas(List<TypedArea> figureAreas) {
         this.figureAreas = figureAreas != null ? figureAreas : new ArrayList<>();
     }
 
-    public List<IgnoreArea> getTableAreas() {
+    public List<TypedArea> getTableAreas() {
         return tableAreas;
     }
 
-    public void setTableAreas(List<IgnoreArea> tableAreas) {
+    public void setTableAreas(List<TypedArea> tableAreas) {
         this.tableAreas = tableAreas != null ? tableAreas : new ArrayList<>();
     }
 
-    public List<IgnoreArea> getIgnoredAreas() {
+    public List<TypedArea> getIgnoredAreas() {
         return ignoredAreas;
     }
 
-    public void setIgnoredAreas(List<IgnoreArea> ignoredAreas) {
+    public void setIgnoredAreas(List<TypedArea> ignoredAreas) {
         this.ignoredAreas = ignoredAreas != null ? ignoredAreas : new ArrayList<>();
     }
 
@@ -1766,7 +1766,7 @@ public class Document implements Serializable {
         this.tableTokens = tableTokens != null ? tableTokens : new ArrayList<>();
     }
 
-    public Map<IgnoreArea, List<LayoutToken>> getTableTokensByArea() {
+    public Map<TypedArea, List<LayoutToken>> getTableTokensByArea() {
         return tableTokensByArea;
     }
 
@@ -1827,7 +1827,7 @@ public class Document implements Serializable {
      *
      * @param typedAreas list of typed areas for specialized processing
      */
-    public void filterLayoutTokensByTypedAreas(List<IgnoreArea> typedAreas) {
+    public void filterLayoutTokensByTypedAreas(List<TypedArea> typedAreas) {
         if (typedAreas == null || typedAreas.isEmpty() || tokenizations == null || tokenizations.isEmpty()) {
             return;
         }
@@ -1844,7 +1844,7 @@ public class Document implements Serializable {
         ignoredAreas.clear();
 
         // Categorize areas by type
-        for (IgnoreArea area : typedAreas) {
+        for (TypedArea area : typedAreas) {
             if (area.getType() == null) {
                 continue;
             }
@@ -1859,6 +1859,9 @@ public class Document implements Serializable {
                 case IGNORE:
                     ignoredAreas.add(area);
                     break;
+                case PARATEXT:
+                    ignoredAreas.add(area);
+                    break;
             }
         }
 
@@ -1869,7 +1872,7 @@ public class Document implements Serializable {
 
         for (LayoutToken token : tokenizations) {
             // Check if token intersects with any typed area
-            for (IgnoreArea area : typedAreas) {
+            for (TypedArea area : typedAreas) {
                 if (area.contains(token)) {
                     switch (area.getType()) {
                         case FIGURE:
@@ -1882,6 +1885,10 @@ public class Document implements Serializable {
                             tableTokenCount++;
                             break;
                         case IGNORE:
+                            ignoredTokens.add(token);
+                            ignoredTokenCount++;
+                            break;
+                        case PARATEXT:
                             ignoredTokens.add(token);
                             ignoredTokenCount++;
                             break;

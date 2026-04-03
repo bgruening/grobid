@@ -30,6 +30,10 @@ public class LabeledReferenceResult {
         return label;
     }
 
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
     public String getReferenceText() {
         return referenceText;
     }

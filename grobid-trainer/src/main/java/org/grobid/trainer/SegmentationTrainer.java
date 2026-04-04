@@ -149,9 +149,9 @@ public class SegmentationTrainer extends AbstractTrainer {
                 List<String> labeled = parser.getLabeledResult();
 
                 // For dh-law-footnotes flavor, remap low-support labels
-//                if (flavor == Flavor.ARTICLE_DH_LAW_FOOTNOTES) {
-//                    labeled = remapLowSupportLabels(labeled);
-//                }
+                if (flavor == Flavor.ARTICLE_DH_LAW_FOOTNOTES || flavor == Flavor.ARTICLE_DH_LAW_FOOTNOTES_TOKEN) {
+                    labeled = remapLowSupportLabels(labeled);
+                }
 
                 // we can now add the features
                 // we open the featured file
@@ -258,7 +258,9 @@ public class SegmentationTrainer extends AbstractTrainer {
 
     /**
      * Remap low-support segmentation labels to parent labels for the dh-law-footnotes flavor.
-     * <acknowledgement>/<annex>/<funding>/<conflict> → <body>
+     * <acknowledgement>/<annex>/<funding>/<conflict>/<toc> → <body>
+     * <titlePage>/<cover> → <header>
+     * <footnote> → <references>
      */
     private static List<String> remapLowSupportLabels(List<String> labeled) {
         List<String> remapped = new ArrayList<>(labeled.size());
@@ -276,7 +278,9 @@ public class SegmentationTrainer extends AbstractTrainer {
                        .replace("I-<titlePage>", "I-<header>")
                        .replace("<titlePage>", "<header>")
                        .replace("I-<cover>", "I-<header>")
-                       .replace("<cover>", "<header>");
+                       .replace("<cover>", "<header>")
+                       .replace("I-<footnote>", "I-<references>")
+                       .replace("<footnote>", "<references>");
             remapped.add(line);
         }
         return remapped;

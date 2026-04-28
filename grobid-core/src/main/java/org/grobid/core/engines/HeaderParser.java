@@ -16,6 +16,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.grobid.core.GrobidModel;
 import org.grobid.core.GrobidModels;
 import org.grobid.core.GrobidModels.Flavor;
 import org.grobid.core.data.BiblioItem;
@@ -64,34 +65,34 @@ public class HeaderParser extends AbstractParser {
 
     HeaderParser(GrobidModel model) {
         super(model);
-//        this.languageUtilities = LanguageUtilities.getInstance();
+        //        this.languageUtilities = LanguageUtilities.getInstance();
     }
 
     public HeaderParser(EngineParsers parsers, CntManager cntManager) {
         super(GrobidModels.HEADER, cntManager);
         this.parsers = parsers;
         GrobidProperties.getInstance();
-//        this.languageUtilities = LanguageUtilities.getInstance();
+        //        this.languageUtilities = LanguageUtilities.getInstance();
     }
 
     public HeaderParser(EngineParsers parsers) {
         super(GrobidModels.HEADER);
         this.parsers = parsers;
-//        this.languageUtilities = LanguageUtilities.getInstance();
+        //        this.languageUtilities = LanguageUtilities.getInstance();
         GrobidProperties.getInstance();
     }
 
     public HeaderParser(EngineParsers parsers, CntManager cntManager, Flavor flavor) {
         super(GrobidModels.getModelFlavor(GrobidModels.HEADER, flavor), cntManager);
         this.parsers = parsers;
-//        this.languageUtilities = LanguageUtilities.getInstance();
+        //        this.languageUtilities = LanguageUtilities.getInstance();
         GrobidProperties.getInstance();
     }
 
     public HeaderParser(EngineParsers parsers, Flavor flavor) {
         super(GrobidModels.getModelFlavor(GrobidModels.HEADER, flavor));
         this.parsers = parsers;
-//        this.languageUtilities = LanguageUtilities.getInstance();
+        //        this.languageUtilities = LanguageUtilities.getInstance();
         GrobidProperties.getInstance();
     }
 

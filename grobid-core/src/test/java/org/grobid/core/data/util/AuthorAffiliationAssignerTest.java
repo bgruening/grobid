@@ -1,17 +1,18 @@
 package org.grobid.core.data.util;
 
-import org.grobid.core.data.Affiliation;
-import org.grobid.core.data.Person;
-import org.grobid.core.layout.LayoutToken;
-import org.junit.Test;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.*;
+import org.junit.Test;
+
+import org.grobid.core.data.Affiliation;
+import org.grobid.core.data.Person;
+import org.grobid.core.layout.LayoutToken;
 
 public class AuthorAffiliationAssignerTest {
 
@@ -25,7 +26,8 @@ public class AuthorAffiliationAssignerTest {
         AuthorAffiliationAssigner.assign(authors, affs, null);
 
         assertThat(authors.get(0).getAffiliations(), hasSize(1));
-        assertThat(authors.get(0).getAffiliations().get(0).getRawAffiliationString(),
+        assertThat(
+                authors.get(0).getAffiliations().get(0).getRawAffiliationString(),
                 is("University of Nowhere"));
         assertFalse(affs.get(0).getFailAffiliation());
     }
@@ -520,13 +522,15 @@ public class AuthorAffiliationAssignerTest {
 
         // All 3 affiliations should be assigned (no orphans)
         for (Affiliation aff : affs) {
-            assertFalse("Affiliation '" + aff.getRawAffiliationString() + "' should not be orphaned",
+            assertFalse(
+                    "Affiliation '" + aff.getRawAffiliationString() + "' should not be orphaned",
                     aff.getFailAffiliation());
         }
         // Each author should have at least one affiliation
         for (Person aut : authors) {
             assertNotNull(aut.getAffiliations());
-            assertFalse("Author '" + aut.getLastName() + "' should have affiliations",
+            assertFalse(
+                    "Author '" + aut.getLastName() + "' should have affiliations",
                     aut.getAffiliations().isEmpty());
         }
     }
@@ -543,7 +547,8 @@ public class AuthorAffiliationAssignerTest {
 
         // All affiliations should be assigned
         for (Affiliation aff : affs) {
-            assertFalse("Affiliation '" + aff.getRawAffiliationString() + "' should not be orphaned",
+            assertFalse(
+                    "Affiliation '" + aff.getRawAffiliationString() + "' should not be orphaned",
                     aff.getFailAffiliation());
         }
     }

@@ -1,5 +1,26 @@
 package org.grobid.core.engines;
 
+import static org.easymock.EasyMock.expect;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+
+import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.easymock.PowerMock;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
 import org.grobid.core.GrobidModel;
 import org.grobid.core.GrobidModels;
 import org.grobid.core.data.Affiliation;
@@ -12,30 +33,9 @@ import org.grobid.core.utilities.GrobidProperties;
 import org.grobid.core.utilities.LanguageUtilities;
 import org.grobid.core.utilities.counters.CntManager;
 import org.grobid.core.utilities.counters.impl.CntManagerFactory;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.easymock.PowerMock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import java.io.InputStream;
-import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Lexicon.class, LanguageUtilities.class, Engine.class })
+@PrepareForTest({Lexicon.class, LanguageUtilities.class, Engine.class})
 public class HeaderParserTest {
     private HeaderParser target;
 
@@ -70,7 +70,8 @@ public class HeaderParserTest {
         biblio.attachAffiliations();
 
         assertThat(biblio.getFullAuthors().get(0).getAffiliations().size(), is(1));
-        assertThat(biblio.getFullAuthors().get(0).getAffiliations().get(0).getRawAffiliationString(),
+        assertThat(
+                biblio.getFullAuthors().get(0).getAffiliations().get(0).getRawAffiliationString(),
                 is("University of Nowhere"));
 
         // 2. Two authors, two affiliations (with markers)
@@ -274,24 +275,34 @@ public class HeaderParserTest {
 
         AffiliationAddressParser affParser = new AffiliationAddressParser(GrobidModels.DUMMY);
         Method extractMethod = AffiliationAddressParser.class.getDeclaredMethod(
-                "resultExtractionLayoutTokens", String.class, List.class);
+                "resultExtractionLayoutTokens",
+                String.class,
+                List.class);
         extractMethod.setAccessible(true);
 
         @SuppressWarnings("unchecked")
         List<Affiliation> affiliations = (List<Affiliation>) extractMethod.invoke(
-                affParser, affResult.toString(), affTokens);
+                affParser,
+                affResult.toString(),
+                affTokens);
 
         assertNotNull("Affiliations should be extracted from labeled output", affiliations);
         // The file has markers 1-24, so we expect ~24 affiliations
-        assertThat("Should have many distinct affiliations (markers 1-24), found: " + affiliations.size(),
-                affiliations.size(), greaterThan(15));
+        assertThat(
+                "Should have many distinct affiliations (markers 1-24), found: " + affiliations.size(),
+                affiliations.size(),
+                greaterThan(15));
 
         // Debug: print affiliations if count is low
         if (affiliations.size() < 15) {
             for (Affiliation aff : affiliations) {
-                System.out.println("DEBUG aff: marker=" + aff.getMarker()
-                        + " inst=" + aff.getInstitutions()
-                        + " raw=" + aff.getRawAffiliationString());
+                System.out.println(
+                        "DEBUG aff: marker="
+                                + aff.getMarker()
+                                + " inst="
+                                + aff.getInstitutions()
+                                + " raw="
+                                + aff.getRawAffiliationString());
             }
         }
 
@@ -361,7 +372,9 @@ public class HeaderParserTest {
                 break;
             }
         }
-        assertThat(author.getLastName() + " should be linked to affiliation marker " + marker,
-                found, is(true));
+        assertThat(
+                author.getLastName() + " should be linked to affiliation marker " + marker,
+                found,
+                is(true));
     }
 }

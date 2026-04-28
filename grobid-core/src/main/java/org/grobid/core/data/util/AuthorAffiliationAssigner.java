@@ -1,15 +1,15 @@
 package org.grobid.core.data.util;
 
-import org.grobid.core.data.Affiliation;
-import org.grobid.core.data.Person;
-import org.grobid.core.layout.LayoutToken;
+import java.util.*;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import org.grobid.core.data.Affiliation;
+import org.grobid.core.data.Person;
+import org.grobid.core.layout.LayoutToken;
 
 /**
  * Assigns affiliations to authors using a priority-based strategy:
@@ -55,8 +55,10 @@ public class AuthorAffiliationAssigner {
                 aut.addAffiliation(aff);
             }
             aff.setFailAffiliation(false);
-            LOGGER.debug("Distribution: single affiliation '{}' assigned to all {} authors",
-                    aff.getRawAffiliationString(), nbAuthors);
+            LOGGER.debug(
+                    "Distribution: single affiliation '{}' assigned to all {} authors",
+                    aff.getRawAffiliationString(),
+                    nbAuthors);
             return;
         }
 
@@ -67,8 +69,10 @@ public class AuthorAffiliationAssigner {
                 auth.addAffiliation(aff);
                 aff.setFailAffiliation(false);
             }
-            LOGGER.debug("Distribution: all {} affiliations assigned to single author '{}'",
-                    nbAffiliations, auth.getLastName());
+            LOGGER.debug(
+                    "Distribution: all {} affiliations assigned to single author '{}'",
+                    nbAffiliations,
+                    auth.getLastName());
             return;
         }
 
@@ -128,8 +132,11 @@ public class AuthorAffiliationAssigner {
                         aut.addAffiliation(aff);
                         aff.setFailAffiliation(false);
                         anyMatched = true;
-                        LOGGER.debug("Direct marker matching: author '{}' matched to affiliation '{}' via marker '{}'",
-                                aut.getLastName(), aff.getRawAffiliationString(), marker);
+                        LOGGER.debug(
+                                "Direct marker matching: author '{}' matched to affiliation '{}' via marker '{}'",
+                                aut.getLastName(),
+                                aff.getRawAffiliationString(),
+                                marker);
                     }
                 }
             }
@@ -283,8 +290,11 @@ public class AuthorAffiliationAssigner {
                             authors.get(best).addAffiliation(aff);
                             aff.setFailAffiliation(false);
                             winners.add(Integer.valueOf(best));
-                            LOGGER.debug("Marker matching: author '{}' matched to affiliation '{}' via marker '{}'",
-                                    authors.get(best).getLastName(), aff.getRawAffiliationString(), marker);
+                            LOGGER.debug(
+                                    "Marker matching: author '{}' matched to affiliation '{}' via marker '{}'",
+                                    authors.get(best).getLastName(),
+                                    aff.getRawAffiliationString(),
+                                    marker);
                         }
 
                         from = ind + 1;
@@ -336,8 +346,10 @@ public class AuthorAffiliationAssigner {
         }
 
         if (authorCentroids.isEmpty() || affCentroids.isEmpty()) {
-            LOGGER.debug("Proximity matching: insufficient coordinates (authors={}, affs={}), skipping",
-                    authorCentroids.size(), affCentroids.size());
+            LOGGER.debug(
+                    "Proximity matching: insufficient coordinates (authors={}, affs={}), skipping",
+                    authorCentroids.size(),
+                    affCentroids.size());
             return;
         }
 
@@ -363,8 +375,11 @@ public class AuthorAffiliationAssigner {
             if (bestAff != null) {
                 aut.addAffiliation(bestAff);
                 bestAff.setFailAffiliation(false);
-                LOGGER.debug("Proximity matching: author '{}' assigned to affiliation '{}' (distance={})",
-                        aut.getLastName(), bestAff.getRawAffiliationString(), bestDist);
+                LOGGER.debug(
+                        "Proximity matching: author '{}' assigned to affiliation '{}' (distance={})",
+                        aut.getLastName(),
+                        bestAff.getRawAffiliationString(),
+                        bestDist);
             }
         }
     }
@@ -383,8 +398,10 @@ public class AuthorAffiliationAssigner {
             return;
         }
 
-        LOGGER.debug("Sequential fallback: {} floating authors, {} floating affiliations",
-                floatingAuthors.size(), floatingAffiliations.size());
+        LOGGER.debug(
+                "Sequential fallback: {} floating authors, {} floating affiliations",
+                floatingAuthors.size(),
+                floatingAffiliations.size());
 
         if (floatingAffiliations.size() < floatingAuthors.size()) {
             // Fewer affiliations than authors → distribute all to each author
@@ -394,8 +411,10 @@ public class AuthorAffiliationAssigner {
                     aff.setFailAffiliation(false);
                 }
             }
-            LOGGER.debug("Sequential fallback: distributed {} affiliations to all {} floating authors",
-                    floatingAffiliations.size(), floatingAuthors.size());
+            LOGGER.debug(
+                    "Sequential fallback: distributed {} affiliations to all {} floating authors",
+                    floatingAffiliations.size(),
+                    floatingAuthors.size());
         } else {
             // Equal or more affiliations than authors → 1:1 sequential
             int p = 0;
@@ -440,7 +459,7 @@ public class AuthorAffiliationAssigner {
             return null;
         }
 
-        return new double[] { sumX / count, sumY / count, page };
+        return new double[]{sumX / count, sumY / count, page};
     }
 
     /**
@@ -509,8 +528,10 @@ public class AuthorAffiliationAssigner {
             if (bestAuthor != null) {
                 bestAuthor.addAffiliation(orphan);
                 orphan.setFailAffiliation(false);
-                LOGGER.debug("Orphan rescue: affiliation '{}' assigned to author '{}'",
-                        orphan.getRawAffiliationString(), bestAuthor.getLastName());
+                LOGGER.debug(
+                        "Orphan rescue: affiliation '{}' assigned to author '{}'",
+                        orphan.getRawAffiliationString(),
+                        bestAuthor.getLastName());
             }
         }
     }

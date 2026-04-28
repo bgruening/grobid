@@ -16,8 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.grobid.core.GrobidModels;
-import org.grobid.core.data.util.AuthorEmailAssigner;
 import org.grobid.core.data.util.AuthorAffiliationAssigner;
+import org.grobid.core.data.util.AuthorEmailAssigner;
 import org.grobid.core.data.util.ClassicAuthorEmailAssigner;
 import org.grobid.core.data.util.EmailSanitizer;
 import org.grobid.core.document.*;
@@ -1777,7 +1777,7 @@ public class BiblioItem {
     /**
      * Keyword field segmentation.
      *
-     * TBD: create a dedicated model to analyse the keyword field, segmenting them properly and 
+     * TBD: create a dedicated model to analyse the keyword field, segmenting them properly and
      * identifying the possible schemes
      */
     public static List<Keyword> segmentKeywords(String string) {
@@ -2102,7 +2102,7 @@ public class BiblioItem {
             if (!StringUtils.isEmpty(arXivId)) {
                 bibtex.add("  eprint = {" + arXivId + "}");
             }
-            /* note that the following is now recommended for arXiv citations: 
+            /* note that the following is now recommended for arXiv citations:
                     archivePrefix = "arXiv",
                     eprint        = "0707.3168",
                     primaryClass  = "hep-th",
@@ -2136,7 +2136,7 @@ public class BiblioItem {
     }
 
     /**
-     * Check if the identifier pubnum is a DOI or an arXiv identifier. If yes, instanciate 
+     * Check if the identifier pubnum is a DOI or an arXiv identifier. If yes, instanciate
      * the corresponding field and reset the generic pubnum field.
      */
     public void checkIdentifier() {
@@ -3908,8 +3908,8 @@ public class BiblioItem {
                 String firstPage = null;
                 String lastPage = null;
 
-                // alphaPrefix or alphaPostfix are for storing possible alphabetical prefix or postfix to page number, 
-                // e.g. "L" in Smith, G. P., Mazzotta, P., Okabe, N., et al. 2016, MNRAS, 456, L74  
+                // alphaPrefix or alphaPostfix are for storing possible alphabetical prefix or postfix to page number,
+                // e.g. "L" in Smith, G. P., Mazzotta, P., Okabe, N., et al. 2016, MNRAS, 456, L74
                 // or "D" in  "Am J Cardiol. 1999, 83:143D-150D. 10.1016/S0002-9149(98)01016-9"
                 String alphaPrefixStart = null;
                 String alphaPrefixEnd = null;
@@ -4005,7 +4005,7 @@ public class BiblioItem {
                                 // we try to guess/refine the re-composition of pages
 
                                 if (endPage >= 50) {
-                                    // we assume no journal articles have more than 49 pages and is expressed as addition, 
+                                    // we assume no journal articles have more than 49 pages and is expressed as addition,
                                     // so it's a substitution
                                     int upperBound = firstPage.length() - lastPage.length();
                                     if (upperBound < firstPage.length() && upperBound > 0)
@@ -4036,7 +4036,7 @@ public class BiblioItem {
                                         }
                                     }
 
-                                    // we assume there is no article of more than 99 pages expressed in this abbreviated way 
+                                    // we assume there is no article of more than 99 pages expressed in this abbreviated way
                                     // (which are for journal articles only, so short animals)
 
                                     if (alphaPrefixEnd != null)
@@ -4317,8 +4317,8 @@ public class BiblioItem {
     }
 
     /**
-     *  Check is the biblio item can be considered as a minimally valid bibliographical reference. 
-	 *  A certain minimal number of core metadata have to be instanciated. Otherwise, the biblio
+     *  Check is the biblio item can be considered as a minimally valid bibliographical reference.
+     *  A certain minimal number of core metadata have to be instanciated. Otherwise, the biblio
      *  item can be considered as "garbage" extracted incorrectly.
      */
     public boolean rejectAsReference() {
@@ -4329,7 +4329,7 @@ public class BiblioItem {
         boolean authorSet = true;
         if (fullAuthors == null && collaboration == null)
             authorSet = false;
-		// normally properties authors and authorList are null in the current Grobid version
+        // normally properties authors and authorList are null in the current Grobid version
         if (!titleSet && !authorSet && url == null && doi == null && halId == null)
             return true;
         else

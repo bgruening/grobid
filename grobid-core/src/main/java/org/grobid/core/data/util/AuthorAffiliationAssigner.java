@@ -336,9 +336,23 @@ public class AuthorAffiliationAssigner {
             }
         }
 
-        // compute centroids for all affiliations (not just floating — multiple authors can share)
+        // Prefer affiliations not yet resolved by marker matching.
+        // If at least one unresolved affiliation exists, pull only from those —
+        // marker-matched affiliations are treated as exclusively claimed by
+        // their marker-bound author. If every affiliation has been resolved by
+        // marker matching, fall back to considering all (a floating author still
+        // needs *some* candidate).
+        boolean anyUnresolved = false;
+        for (Affiliation aff : affiliations) {
+            if (aff.getFailAffiliation()) {
+                anyUnresolved = true;
+                break;
+            }
+        }
         Map<Affiliation, double[]> affCentroids = new LinkedHashMap<>();
         for (Affiliation aff : affiliations) {
+            if (anyUnresolved && !aff.getFailAffiliation())
+                continue;
             double[] centroid = computeCentroid(aff.getLayoutTokens());
             if (centroid != null) {
                 affCentroids.put(aff, centroid);
@@ -354,7 +368,8 @@ public class AuthorAffiliationAssigner {
         }
 
         // Each floating author picks its nearest affiliation independently
-        // (no exclusion — multiple authors can share the same affiliation)
+        // from the candidate pool above (multiple authors can still share the
+        // same affiliation — e.g. when none have been marker-matched).
         for (Map.Entry<Person, double[]> autEntry : authorCentroids.entrySet()) {
             Person aut = autEntry.getKey();
             double[] autCentroid = autEntry.getValue();

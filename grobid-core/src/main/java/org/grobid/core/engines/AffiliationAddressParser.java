@@ -170,6 +170,8 @@ public class AffiliationAddressParser extends AbstractParser {
 
         String tokenLabel = null;
         boolean newline = true;
+        double lastY = -1;
+        int lastPage = -1;
         List<TaggingTokenCluster> clusters = clusteror.cluster();
         for (TaggingTokenCluster cluster : clusters) {
             if (cluster == null) {
@@ -186,6 +188,18 @@ public class AffiliationAddressParser extends AbstractParser {
 
             List<LayoutToken> tokens = cluster.concatTokens();
 
+            // Detect a line break across the previous cluster boundary by comparing
+            // page/Y of the first token here against the last token of the previous
+            // cluster. Header-model segment boundaries do not carry a \n LayoutToken
+            // in the flattened token stream, so the existing \n-text check below is
+            // not sufficient.
+            if (!tokens.isEmpty() && lastY >= 0) {
+                LayoutToken firstToken = tokens.get(0);
+                if (firstToken.getPage() != lastPage || Math.abs(firstToken.getY() - lastY) >= 1.0) {
+                    newline = true;
+                }
+            }
+
             if (clusterLabel.equals(TaggingLabels.AFFILIATION_MARKER)) {
                 // if an affiliation has already a merker, or if a marker start a line,
                 // we introduce a new affiliation
@@ -200,7 +214,7 @@ public class AffiliationAddressParser extends AbstractParser {
                 affiliation.addLabeledResult(TaggingLabels.AFFILIATION_MARKER, tokens);
             } else if (clusterLabel.equals(TaggingLabels.AFFILIATION_INSTITUTION)) {
                 if (affiliation.getInstitutions() != null && affiliation.getInstitutions().size() > 0) {
-                    if (affiliation.hasAddress()) {
+                    if (affiliation.hasAddress() || newline) {
                         // new affiliation
                         if (affiliation.isNotNull()) {
                             affiliations.add(affiliation);
@@ -212,7 +226,7 @@ public class AffiliationAddressParser extends AbstractParser {
                 affiliation.addLabeledResult(TaggingLabels.AFFILIATION_INSTITUTION, tokens);
             } else if (clusterLabel.equals(TaggingLabels.AFFILIATION_DEPARTMENT)) {
                 if (affiliation.getDepartments() != null && affiliation.getDepartments().size() > 0) {
-                    if (affiliation.hasAddress()) {
+                    if (affiliation.hasAddress() || newline) {
                         // new affiliation
                         if (affiliation.isNotNull()) {
                             affiliations.add(affiliation);
@@ -224,7 +238,7 @@ public class AffiliationAddressParser extends AbstractParser {
                 affiliation.addLabeledResult(TaggingLabels.AFFILIATION_DEPARTMENT, tokens);
             } else if (clusterLabel.equals(TaggingLabels.AFFILIATION_LABORATORY)) {
                 if (affiliation.getLaboratories() != null && affiliation.getLaboratories().size() > 0) {
-                    if (affiliation.hasAddress()) {
+                    if (affiliation.hasAddress() || newline) {
                         // new affiliation
                         if (affiliation.isNotNull()) {
                             affiliations.add(affiliation);
@@ -294,6 +308,10 @@ public class AffiliationAddressParser extends AbstractParser {
                 LayoutToken lastToken = tokens.get(tokens.size() - 1);
                 if (lastToken.getText() != null && lastToken.getText().equals("\n"))
                     newline = true;
+                if (lastToken.getY() >= 0) {
+                    lastY = lastToken.getY();
+                    lastPage = lastToken.getPage();
+                }
             }
         }
 

@@ -39,6 +39,27 @@ public class AuthorParser {
 
     private static final Pattern ET_AL_PATTERN = Pattern.compile("et\\.? al\\.?");
 
+    /**
+     * Splits a raw &lt;marker&gt; cluster string (e.g. "1,2,3*", "1, 2", "**")
+     * into individual markers. Digit runs and letter runs stay grouped (so
+     * "11" and "ii" remain single markers); the literal "**" stays grouped
+     * (it is conventionally a single corresponding-author marker); other
+     * symbols (`*`, `†`, etc.) become individual markers.
+     */
+    private static final Pattern MARKER_SPLIT_PATTERN = Pattern.compile("[0-9]+|[a-zA-Z]+|\\*\\*|[^0-9a-zA-Z,\\s]");
+
+    static List<String> splitMarkers(String markerCluster) {
+        List<String> result = new ArrayList<>();
+        if (StringUtils.isBlank(markerCluster)) {
+            return result;
+        }
+        Matcher m = MARKER_SPLIT_PATTERN.matcher(markerCluster);
+        while (m.find()) {
+            result.add(m.group());
+        }
+        return result;
+    }
+
     public AuthorParser() {
         namesHeaderParser = TaggerFactory.getTagger(GrobidModels.NAMES_HEADER);
         namesCitationParser = TaggerFactory.getTagger(GrobidModels.NAMES_CITATION);
@@ -185,12 +206,19 @@ public class AuthorParser {
                     // or following author (rare)
                     currentMarker = clusterContent;
                     newMarker = true;
+                    // Marker clusters can carry several distinct markers in one
+                    // run (e.g. "1, 2, 3*"); split into individual markers so
+                    // each can be matched independently against affiliation
+                    // markers downstream.
+                    List<String> individualMarkers = splitMarkers(currentMarker);
                     boolean markerAssigned = false;
                     if (aut.notNull()) {
                         if (fullAuthors == null) {
                             fullAuthors = new ArrayList<Person>();
                         }
-                        aut.addMarker(currentMarker);
+                        for (String m : individualMarkers) {
+                            aut.addMarker(m);
+                        }
                         markerAssigned = true;
 
                         if (!fullAuthors.contains(aut)) {
@@ -199,7 +227,9 @@ public class AuthorParser {
                         }
                     }
                     if (!markerAssigned) {
-                        aut.addMarker(currentMarker);
+                        for (String m : individualMarkers) {
+                            aut.addMarker(m);
+                        }
                     }
                 } else if (clusterLabel.equals(TaggingLabels.NAMES_HEADER_TITLE) ||
                         clusterLabel.equals(TaggingLabels.NAMES_CITATION_TITLE)) {

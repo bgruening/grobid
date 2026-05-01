@@ -657,7 +657,76 @@ public class AuthorAffiliationAssignerTest {
         assertThat(vitzthumMarkers, containsInAnyOrder("3", "4"));
     }
 
+    /**
+     * Reproduces the arXiv:2310.00185 (CARLA) regression where authors with
+     * multiple markers including a shared one lose their shared-marker
+     * affiliations. The AUTHOR model labels the markers as listed below;
+     * direct-marker matching (Tier 2) must give every author every aff
+     * matching one of their markers.
+     *
+     * Note: Harvey's `a` is mislabelled as &lt;other&gt; by the AUTHOR model
+     * upstream of this assigner (a known model defect, out of scope here).
+     * His Person.markers therefore is just [*]. Tier 3 string-search must
+     * then find the standalone `a` in the originalAuthors string and assign
+     * aff0 to him via lastname proximity.
+     */
+    @Test
+    public void test_2310_00185_sharedMarkers_multiAuthorAffs() {
+        Person harvey = personWithMarkers("Huang", "Harvey", "*");
+        Person gabriela = personWithMarkers("Valencia", "Gabriela", "b");
+        Person nicholas = personWithMarkers("Gregg", "Nicholas", "c");
+        Person osman = personWithMarkers("Osman", "Gamaleldin", "c", "f");
+        Person morgan = personWithMarkers("Montoya", "Morgan", "b");
+        Person worrell = personWithMarkers("Worrell", "Gregory", "b", "c");
+        Person miller = personWithMarkers("Miller", "Kai", "b", "d");
+        Person hermes = personWithMarkers("Hermes", "Dora", "*", "b", "c", "e");
+
+        List<Person> authors = new ArrayList<>(Arrays.asList(
+                harvey,
+                gabriela,
+                nicholas,
+                osman,
+                morgan,
+                worrell,
+                miller,
+                hermes));
+
+        Affiliation aff0 = affWithMarker("Mayo Clinic Medical Scientist Training Program", "a");
+        Affiliation aff1 = affWithMarker("Department of Physiology and Biomedical Engineering", "b");
+        Affiliation aff2 = affWithMarker("Department of Neurology", "c");
+        Affiliation aff3 = affWithMarker("Department of Neurologic Surgery", "d");
+        Affiliation aff4 = affWithMarker("Department of Radiology", "e");
+        Affiliation aff5 = affWithMarker("Division of Child Neurology", "f");
+        List<Affiliation> affs = new ArrayList<>(Arrays.asList(aff0, aff1, aff2, aff3, aff4, aff5));
+
+        String originalAuthors = "Harvey Huang* a, Gabriela Ojeda Valencia b, "
+                + "Nicholas M. Gregg c, Gamaleldin M. Osman c, f, "
+                + "Morgan N. Montoya b, Gregory A. Worrell b, c, "
+                + "Kai J. Miller b, d, Dora Hermes* b, c, e";
+
+        AuthorAffiliationAssigner.assign(authors, affs, originalAuthors);
+
+        assertThat(markersOf(harvey), containsInAnyOrder("a"));
+        assertThat(markersOf(gabriela), containsInAnyOrder("b"));
+        assertThat(markersOf(nicholas), containsInAnyOrder("c"));
+        assertThat(markersOf(osman), containsInAnyOrder("c", "f"));
+        assertThat(markersOf(morgan), containsInAnyOrder("b"));
+        assertThat(markersOf(worrell), containsInAnyOrder("b", "c"));
+        assertThat(markersOf(miller), containsInAnyOrder("b", "d"));
+        assertThat(markersOf(hermes), containsInAnyOrder("b", "c", "e"));
+    }
+
     // --- Helper methods ---
+
+    private static Set<String> markersOf(Person p) {
+        Set<String> result = new HashSet<>();
+        if (p.getAffiliations() != null) {
+            for (Affiliation a : p.getAffiliations()) {
+                result.add(a.getMarker());
+            }
+        }
+        return result;
+    }
 
     private static Person person(String lastName) {
         Person p = new Person();

@@ -1,12 +1,15 @@
 package org.grobid.core.data.util;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.Test;
 
@@ -573,12 +576,110 @@ public class AuthorAffiliationAssignerTest {
         // no exception
     }
 
+    // --- Regression: corresponding-author footnote produces phantom duplicate ---
+
+    /**
+     * Reproduces the arXiv 2102.12439 regression: the HEADER model labels the
+     * "Corresponding author: Noémie Elhadad (...)" footnote as &lt;author&gt; too,
+     * so AuthorParser emits a phantom Person with the same name signature
+     * (lastname + first-letter-of-firstname) but no markers and layout tokens
+     * near a non-claimed affiliation. If dedup runs AFTER attachAffiliations,
+     * the phantom grabs that aff via proximity and the dedup-merge loop leaks
+     * it onto the real author. HeaderParser was changed to dedup BEFORE
+     * attachAffiliations; this test pins the post-fix behavior.
+     */
+    @Test
+    public void testCorrespondingAuthorFootnoteDuplicate_dedupBeforeAssign() {
+        Person kathy = personWithMarkers("Li", "Kathy", "1", "2");
+        Person inigo = personWithMarkers("Urteaga", "Iñigo", "1", "2");
+        Person amanda = personWithMarkers("Shea", "Amanda", "3");
+        Person vitzthum = personWithMarkers("Vitzthum", "Virginia", "3", "4");
+        Person wiggins = personWithMarkers("Wiggins", "Chris", "1", "2");
+        Person elhadad = personWithMarkers("Elhadad", "Noémie", "*", "5", "2");
+
+        // Phantom Person from the footnote: same signature ("Elhadad" + "N"),
+        // no markers, layout tokens placed near aff3 in the page.
+        Person phantomElhadad = new Person();
+        phantomElhadad.setLastName("Elhadad");
+        phantomElhadad.setFirstName("Noémie");
+        phantomElhadad.setLayoutTokens(tokensAt(100, 800, 1));
+
+        List<Person> authors = new ArrayList<>(Arrays.asList(
+                kathy,
+                inigo,
+                amanda,
+                vitzthum,
+                wiggins,
+                elhadad,
+                phantomElhadad));
+
+        Affiliation aff0 = affWithMarker("Dept of Applied Physics", "1");
+        Affiliation aff1 = affWithMarker("Data Science Institute", "2");
+        Affiliation aff2 = affWithMarker("Clue by BioWink", "3");
+        Affiliation aff3 = affWithMarker("Kinsey Institute", "4");
+        Affiliation aff4 = affWithMarker("Dept Biomedical Informatics", "5");
+        // aff3's tokens sit close to the phantom — without dedup-first, proximity
+        // would attach aff3 to the phantom and dedup would leak it onto Elhadad.
+        aff3.setLayoutTokens(tokensAt(100, 750, 1));
+        List<Affiliation> affs = new ArrayList<>(Arrays.asList(aff0, aff1, aff2, aff3, aff4));
+
+        String originalAuthors = "Kathy Li 1, 2, Iñigo Urteaga 1, 2, Amanda Shea 3, "
+                + "Virginia J. Vitzthum 3, 4, Chris H. Wiggins 1, 2, "
+                + "and Noémie Elhadad *, 5, 2";
+
+        // Post-fix HeaderParser order: deduplicate first, then attachAffiliations.
+        authors = Person.deduplicate(authors);
+        AuthorAffiliationAssigner.assign(authors, affs, originalAuthors);
+
+        Person mergedElhadad = null;
+        for (Person p : authors) {
+            if ("Elhadad".equals(p.getLastName())) {
+                mergedElhadad = p;
+                break;
+            }
+        }
+        assertNotNull("Elhadad should remain after dedup", mergedElhadad);
+        assertThat(mergedElhadad.getAffiliations(), hasSize(2));
+
+        Set<String> markers = new HashSet<>();
+        for (Affiliation a : mergedElhadad.getAffiliations()) {
+            markers.add(a.getMarker());
+        }
+        // markers 2 (Data Science Institute) and 5 (Dept Biomedical Informatics).
+        // Crucially NOT 4 (Kinsey Institute) — that's Vitzthum's only.
+        assertThat(markers, containsInAnyOrder("2", "5"));
+
+        // Vitzthum still owns aff3 (marker 4)
+        Set<String> vitzthumMarkers = new HashSet<>();
+        for (Affiliation a : vitzthum.getAffiliations()) {
+            vitzthumMarkers.add(a.getMarker());
+        }
+        assertThat(vitzthumMarkers, containsInAnyOrder("3", "4"));
+    }
+
     // --- Helper methods ---
 
     private static Person person(String lastName) {
         Person p = new Person();
         p.setLastName(lastName);
         return p;
+    }
+
+    private static Person personWithMarkers(String lastName, String firstName, String... markers) {
+        Person p = new Person();
+        p.setLastName(lastName);
+        p.setFirstName(firstName);
+        for (String m : markers) {
+            p.addMarker(m);
+        }
+        return p;
+    }
+
+    private static Affiliation affWithMarker(String rawString, String marker) {
+        Affiliation aff = new Affiliation();
+        aff.setRawAffiliationString(rawString);
+        aff.setMarker(marker);
+        return aff;
     }
 
     private static Affiliation affiliation(String rawString) {

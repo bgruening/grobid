@@ -252,10 +252,15 @@ public class HeaderParser extends AbstractParser {
                         parsers.getAffiliationAddressParser().processingLayoutTokens(tokenizationsAffiliation));
                 resHeader.attachEmails();
                 resHeader.attachEditorEmails();
-                resHeader.attachAffiliations();
 
-                // remove duplicated authors
+                // Deduplicate authors BEFORE attachAffiliations: the HEADER model can label
+                // a corresponding-author footnote ("Corresponding author: X (email)") as
+                // <author>, producing a phantom Person that would otherwise grab a nearest
+                // affiliation by proximity and leak it into the real author via the
+                // dedup-merge loop in Person.deduplicate.
                 resHeader.setFullAuthors(Person.deduplicate(resHeader.getFullAuthors()));
+
+                resHeader.attachAffiliations();
 
                 if (resHeader.getEditors() != null) {
                     // TBD: consider segments also for editors, like for authors above

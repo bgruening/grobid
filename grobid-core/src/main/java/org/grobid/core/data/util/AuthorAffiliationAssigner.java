@@ -9,7 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import org.grobid.core.data.Affiliation;
 import org.grobid.core.data.Person;
+import org.grobid.core.engines.label.TaggingLabels;
 import org.grobid.core.layout.LayoutToken;
+import org.grobid.core.tokenization.TaggingTokenCluster;
 
 /**
  * Assigns affiliations to authors using a priority-based strategy:
@@ -94,6 +96,176 @@ public class AuthorAffiliationAssigner {
         //    This prevents affiliations from being completely lost when the
         //    earlier strategies over-assigned some affiliations.
         rescueOrphanAffiliations(authors, affiliations);
+    }
+
+    /**
+     * Pre-link tier (runs before {@link #assign}).
+     * <p>
+     * For headers without any markers — neither {@link Person#getMarkers()}
+     * nor {@link Affiliation#getMarker()} — use the HEADER model's labelled
+     * cluster stream to link an affiliation to the author whose name appears
+     * in the immediately-preceding {@code <author>} cluster(s).
+     * <p>
+     * Two patterns are covered:
+     * <ul>
+     * <li><b>Per-author back blocks</b> (e.g. arXiv 1902.04360): each
+     * affiliation block is preceded by exactly one author block.</li>
+     * <li><b>Multi-author shared affiliation</b>:
+     * {@code <author>A</author><author>B</author><author>C</author><affiliation>X</affiliation>}
+     * — all three authors are linked to X by walking back through consecutive
+     * {@code <author>} clusters.</li>
+     * </ul>
+     * <p>
+     * The walk stops at the first non-{@code <author>} cluster (e.g. an
+     * {@code <other>} footnote), keeping the heuristic conservative —
+     * unmatched affiliations are left for the existing tiers in
+     * {@link #assign} to resolve.
+     * <p>
+     * Pure no-op when any marker exists on any author or affiliation, or
+     * when the cluster list is null/empty. This preserves existing behaviour
+     * for marker-bearing headers.
+     *
+     * @param authors      list of authors (modified in place via addAffiliation)
+     * @param affiliations list of affiliations (failAffiliation flag updated in
+     *                     place)
+     * @param clusters     HEADER model labelled cluster stream, in document
+     *                     order; may be null/empty
+     */
+    public static void preLinkByPrecedingAuthorCluster(
+            List<Person> authors,
+            List<Affiliation> affiliations,
+            List<TaggingTokenCluster> clusters) {
+        if (CollectionUtils.isEmpty(authors)
+                || CollectionUtils.isEmpty(affiliations)
+                || CollectionUtils.isEmpty(clusters)) {
+            return;
+        }
+
+        // Gate: any marker anywhere disables this tier.
+        for (Person aut : authors) {
+            if (CollectionUtils.isNotEmpty(aut.getMarkers())) {
+                return;
+            }
+        }
+        for (Affiliation aff : affiliations) {
+            if (StringUtils.isNotBlank(aff.getMarker())) {
+                return;
+            }
+        }
+
+        // Reference-equality map: LayoutToken instances are passed through
+        // AffiliationAddressParser unchanged (see AffiliationAddressParser
+        // line 189–214), so identity lookup is correct.
+        IdentityHashMap<LayoutToken, Affiliation> tokenToAff = new IdentityHashMap<>();
+        for (Affiliation aff : affiliations) {
+            List<LayoutToken> affTokens = aff.getLayoutTokens();
+            if (affTokens == null) {
+                continue;
+            }
+            for (LayoutToken tok : affTokens) {
+                tokenToAff.putIfAbsent(tok, aff);
+            }
+        }
+
+        for (int i = 0; i < clusters.size(); i++) {
+            TaggingTokenCluster cluster = clusters.get(i);
+            if (cluster == null || !TaggingLabels.HEADER_AFFILIATION.equals(cluster.getTaggingLabel())) {
+                continue;
+            }
+
+            // One HEADER <affiliation> cluster may produce multiple Affiliation
+            // objects (AffiliationAddressParser flattens then re-clusters), so
+            // collect every distinct Affiliation whose tokens appear here.
+            LinkedHashSet<Affiliation> targets = new LinkedHashSet<>();
+            for (LayoutToken tok : cluster.concatTokens()) {
+                Affiliation aff = tokenToAff.get(tok);
+                if (aff != null) {
+                    targets.add(aff);
+                }
+            }
+            if (targets.isEmpty()) {
+                continue;
+            }
+
+            // Walk back through consecutive HEADER_AUTHOR clusters.
+            for (int j = i - 1; j >= 0; j--) {
+                TaggingTokenCluster prev = clusters.get(j);
+                if (prev == null || !TaggingLabels.HEADER_AUTHOR.equals(prev.getTaggingLabel())) {
+                    break;
+                }
+                Person matched = matchPersonByCluster(prev.concatTokens(), authors);
+                if (matched == null) {
+                    continue;
+                }
+                for (Affiliation aff : targets) {
+                    List<Affiliation> existing = matched.getAffiliations();
+                    if (existing == null || !existing.contains(aff)) {
+                        matched.addAffiliation(aff);
+                        aff.setFailAffiliation(false);
+                        LOGGER.debug(
+                                "Pre-link by preceding <author>: '{}' linked to affiliation '{}'",
+                                matched.getLastName(),
+                                aff.getRawAffiliationString());
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Match the author-cluster surface against the known authors list using
+     * surname plus first-initial (consistent with {@link Person#deduplicate}).
+     * Returns null when zero or more than one candidate matches — ambiguous
+     * matches are left for downstream tiers.
+     */
+    static Person matchPersonByCluster(List<LayoutToken> clusterTokens, List<Person> authors) {
+        if (CollectionUtils.isEmpty(clusterTokens) || CollectionUtils.isEmpty(authors)) {
+            return null;
+        }
+
+        List<String> parts = new ArrayList<>();
+        for (LayoutToken tok : clusterTokens) {
+            String text = tok.getText();
+            if (StringUtils.isBlank(text)) {
+                continue;
+            }
+            text = text.trim();
+            if (text.isEmpty() || !Character.isLetter(text.charAt(0))) {
+                continue;
+            }
+            // Prefer capitalised surface words; lowercase noise (and, etc.) is rare
+            // in HEADER_AUTHOR but still worth filtering.
+            if (Character.isUpperCase(text.charAt(0))) {
+                parts.add(text);
+            }
+        }
+        if (parts.isEmpty()) {
+            return null;
+        }
+
+        String surname = parts.get(parts.size() - 1);
+        String firstInitial = parts.size() > 1 ? parts.get(0).substring(0, 1) : null;
+
+        List<Person> candidates = new ArrayList<>();
+        for (Person aut : authors) {
+            if (StringUtils.isNotBlank(aut.getLastName())
+                    && aut.getLastName().equalsIgnoreCase(surname)) {
+                candidates.add(aut);
+            }
+        }
+        if (candidates.size() > 1 && firstInitial != null) {
+            List<Person> filtered = new ArrayList<>();
+            for (Person aut : candidates) {
+                if (StringUtils.isNotBlank(aut.getFirstName())
+                        && aut.getFirstName().substring(0, 1).equalsIgnoreCase(firstInitial)) {
+                    filtered.add(aut);
+                }
+            }
+            if (!filtered.isEmpty()) {
+                candidates = filtered;
+            }
+        }
+        return candidates.size() == 1 ? candidates.get(0) : null;
     }
 
     /**

@@ -24,6 +24,7 @@ import org.grobid.core.data.CopyrightsLicense;
 import org.grobid.core.data.Date;
 import org.grobid.core.data.Keyword;
 import org.grobid.core.data.Person;
+import org.grobid.core.data.util.AuthorAffiliationAssigner;
 import org.grobid.core.document.*;
 import org.grobid.core.engines.config.GrobidAnalysisConfig;
 import org.grobid.core.engines.label.SegmentationLabels;
@@ -140,9 +141,13 @@ public class HeaderParser extends AbstractParser {
                 String header = featuredHeader.getLeft();
                 List<LayoutToken> headerTokenization = featuredHeader.getRight();
                 String res = null;
+                List<TaggingTokenCluster> headerClusters = null;
                 if (StringUtils.isNotBlank(header)) {
                     res = label(header);
-                    resHeader = resultExtraction(res, headerTokenization, resHeader);
+                    TaggingTokenClusteror headerClusteror = new TaggingTokenClusteror(
+                            GrobidModels.HEADER, res, headerTokenization);
+                    headerClusters = headerClusteror.cluster();
+                    resHeader = resultExtraction(res, headerTokenization, resHeader, headerClusters);
                 }
 
                 // language identification
@@ -259,6 +264,14 @@ public class HeaderParser extends AbstractParser {
                 // affiliation by proximity and leak it into the real author via the
                 // dedup-merge loop in Person.deduplicate.
                 resHeader.setFullAuthors(Person.deduplicate(resHeader.getFullAuthors()));
+
+                // Pre-link affiliations whose preceding cluster is <author> to the
+                // matching Person. No-op when any marker exists. Runs after dedup so
+                // surname+initial matching resolves against the canonical authors list.
+                AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(
+                        resHeader.getFullAuthors(),
+                        resHeader.getFullAffiliations(),
+                        headerClusters);
 
                 resHeader.attachAffiliations();
 
@@ -852,10 +865,20 @@ public class HeaderParser extends AbstractParser {
      * @return a biblio item
      */
     public BiblioItem resultExtraction(String result, List<LayoutToken> tokenizations, BiblioItem biblio) {
-
         TaggingTokenClusteror clusteror = new TaggingTokenClusteror(GrobidModels.HEADER, result, tokenizations);
+        return resultExtraction(result, tokenizations, biblio, clusteror.cluster());
+    }
 
-        List<TaggingTokenCluster> clusters = clusteror.cluster();
+    /**
+     * Variant that accepts a pre-computed cluster list, allowing callers to
+     * keep the cluster sequence in scope for downstream passes (e.g. the
+     * preceding-author pre-link in {@link #processingHeaderBlock}).
+     */
+    public BiblioItem resultExtraction(
+            String result,
+            List<LayoutToken> tokenizations,
+            BiblioItem biblio,
+            List<TaggingTokenCluster> clusters) {
 
         biblio.generalResultMappingHeader(result, tokenizations);
         for (TaggingTokenCluster cluster : clusters) {

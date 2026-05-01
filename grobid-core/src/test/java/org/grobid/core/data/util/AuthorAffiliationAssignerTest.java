@@ -11,13 +11,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.grobid.core.data.Affiliation;
 import org.grobid.core.data.Person;
+import org.grobid.core.engines.label.TaggingLabel;
+import org.grobid.core.engines.label.TaggingLabels;
 import org.grobid.core.layout.LayoutToken;
+import org.grobid.core.tokenization.LabeledTokensContainer;
+import org.grobid.core.tokenization.TaggingTokenCluster;
+import org.grobid.core.utilities.GrobidProperties;
 
 public class AuthorAffiliationAssignerTest {
+
+    @BeforeClass
+    public static void setInitialContext() throws Exception {
+        GrobidProperties.getInstance();
+    }
 
     // --- Distribution tests ---
 
@@ -716,6 +727,198 @@ public class AuthorAffiliationAssignerTest {
         assertThat(markersOf(hermes), containsInAnyOrder("b", "c", "e"));
     }
 
+    // --- preLinkByPrecedingAuthorCluster tests ---
+
+    /**
+     * Reproduces arXiv 1902.04360: two authors both surnamed "Kim" (Taekyun
+     * and Dae San), no markers anywhere, affiliations live at the back of the
+     * paper with the per-author block pattern. The HEADER model labels the
+     * "Corresponding Author" line as &lt;other&gt;, so only one of the two
+     * affiliations is preceded by a clean &lt;author&gt; cluster — the other
+     * is resolved by elimination via the existing tier waterfall.
+     */
+    @Test
+    public void test_1902_04360_backOfPaper_perAuthorAffBlocks_noMarkers() {
+        // Authors as extracted from the front of the paper (deduped).
+        Person taekyun = new Person();
+        taekyun.setFirstName("Taekyun");
+        taekyun.setLastName("Kim");
+        Person daeSan = new Person();
+        daeSan.setFirstName("Dae");
+        daeSan.setMiddleName("San");
+        daeSan.setLastName("Kim");
+        List<Person> authors = new ArrayList<>(Arrays.asList(taekyun, daeSan));
+
+        // Affiliations as parsed by AffiliationAddressParser.
+        Affiliation kwangwoon = affiliation(
+                "Department of Mathematics Kwangwoon University, Seoul, 139-701, Republic of Korea");
+        List<LayoutToken> kwangwoonTokens = makeTokens(
+                "Department",
+                "of",
+                "Mathematics",
+                "Kwangwoon",
+                "University");
+        kwangwoon.setLayoutTokens(kwangwoonTokens);
+
+        Affiliation sogang = affiliation(
+                "Department of Mathematics Sogang University, Seoul, 121-742, Republic of Korea");
+        List<LayoutToken> sogangTokens = makeTokens(
+                "Department",
+                "of",
+                "Mathematics",
+                "Sogang",
+                "University");
+        sogang.setLayoutTokens(sogangTokens);
+
+        List<Affiliation> affs = new ArrayList<>(Arrays.asList(kwangwoon, sogang));
+
+        // HEADER model labelled cluster stream — back-of-paper region only
+        // (front-of-paper <author>"Taekyun Kim, Dae San Kim" cluster is not
+        // before any <affiliation>, so its presence/absence is irrelevant).
+        List<TaggingTokenCluster> clusters = new ArrayList<>();
+        // "Taekyun Kim: Corresponding Author" — mislabelled <other>
+        clusters.add(
+                buildCluster(
+                        TaggingLabels.HEADER_OTHER,
+                        makeTokens("Taekyun", "Kim", ":", "Corresponding", "Author")));
+        // Kwangwoon affiliation — preceded by <other>, no link via this rule
+        clusters.add(buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, kwangwoonTokens));
+        // Email between Taekyun's and Dae San's blocks
+        clusters.add(
+                buildCluster(
+                        TaggingLabels.HEADER_EMAIL,
+                        makeTokens("tkkim", "@", "kw", ".", "ac", ".", "kr")));
+        // "Dae San Kim" — back-of-paper second author block
+        clusters.add(
+                buildCluster(
+                        TaggingLabels.HEADER_AUTHOR,
+                        makeTokens("Dae", "San", "Kim")));
+        // Sogang affiliation — directly preceded by <author>"Dae San Kim"
+        clusters.add(buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, sogangTokens));
+
+        AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(authors, affs, clusters);
+
+        // After pre-link: Dae San should own Sogang. Taekyun and Kwangwoon
+        // are still floating, and assign() must resolve them by elimination.
+        AuthorAffiliationAssigner.assign(authors, affs, null);
+
+        assertThat(taekyun.getAffiliations(), hasSize(1));
+        assertThat(
+                taekyun.getAffiliations().get(0).getRawAffiliationString(),
+                is(kwangwoon.getRawAffiliationString()));
+        assertThat(daeSan.getAffiliations(), hasSize(1));
+        assertThat(
+                daeSan.getAffiliations().get(0).getRawAffiliationString(),
+                is(sogang.getRawAffiliationString()));
+        assertFalse(kwangwoon.getFailAffiliation());
+        assertFalse(sogang.getFailAffiliation());
+    }
+
+    /**
+     * The pre-link tier must be a pure no-op when any marker exists, so that
+     * existing marker-driven flows keep their behaviour unchanged.
+     */
+    @Test
+    public void test_preLink_isNoOpWhenAnyMarkerPresent() {
+        Person taekyun = new Person();
+        taekyun.setFirstName("Taekyun");
+        taekyun.setLastName("Kim");
+        Person daeSan = new Person();
+        daeSan.setFirstName("Dae");
+        daeSan.setLastName("Kim");
+        // Marker on one author — gate must trip
+        daeSan.addMarker("1");
+        List<Person> authors = Arrays.asList(taekyun, daeSan);
+
+        Affiliation kwangwoon = affiliation("Kwangwoon");
+        List<LayoutToken> kwangwoonTokens = makeTokens("Kwangwoon", "University");
+        kwangwoon.setLayoutTokens(kwangwoonTokens);
+        Affiliation sogang = affiliation("Sogang");
+        List<LayoutToken> sogangTokens = makeTokens("Sogang", "University");
+        sogang.setLayoutTokens(sogangTokens);
+        List<Affiliation> affs = Arrays.asList(kwangwoon, sogang);
+
+        List<TaggingTokenCluster> clusters = Arrays.asList(
+                buildCluster(TaggingLabels.HEADER_AUTHOR, makeTokens("Dae", "San", "Kim")),
+                buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, sogangTokens));
+
+        AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(authors, affs, clusters);
+
+        // No links should have been placed
+        assertNull(taekyun.getAffiliations());
+        assertNull(daeSan.getAffiliations());
+        assertTrue(kwangwoon.getFailAffiliation());
+        assertTrue(sogang.getFailAffiliation());
+    }
+
+    /**
+     * Multi-author shared affiliation — front-of-paper pattern without markers.
+     * Walking back through consecutive &lt;author&gt; clusters should link all
+     * three authors to the single shared affiliation.
+     */
+    @Test
+    public void test_preLink_multipleConsecutiveAuthorsShareAffiliation() {
+        Person a1 = new Person();
+        a1.setFirstName("Alice");
+        a1.setLastName("Apple");
+        Person a2 = new Person();
+        a2.setFirstName("Bob");
+        a2.setLastName("Banana");
+        Person a3 = new Person();
+        a3.setFirstName("Carol");
+        a3.setLastName("Cherry");
+        List<Person> authors = Arrays.asList(a1, a2, a3);
+
+        Affiliation lab = affiliation("Shared Lab");
+        List<LayoutToken> labTokens = makeTokens("Shared", "Lab");
+        lab.setLayoutTokens(labTokens);
+        List<Affiliation> affs = new ArrayList<>(Arrays.asList(lab));
+
+        List<TaggingTokenCluster> clusters = Arrays.asList(
+                buildCluster(TaggingLabels.HEADER_AUTHOR, makeTokens("Alice", "Apple")),
+                buildCluster(TaggingLabels.HEADER_AUTHOR, makeTokens("Bob", "Banana")),
+                buildCluster(TaggingLabels.HEADER_AUTHOR, makeTokens("Carol", "Cherry")),
+                buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, labTokens));
+
+        AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(authors, affs, clusters);
+
+        assertThat(a1.getAffiliations(), hasSize(1));
+        assertThat(a2.getAffiliations(), hasSize(1));
+        assertThat(a3.getAffiliations(), hasSize(1));
+        assertFalse(lab.getFailAffiliation());
+    }
+
+    /**
+     * When a non-&lt;author&gt; cluster sits between &lt;author&gt; and
+     * &lt;affiliation&gt;, the walk-back stops and no link is made.
+     */
+    @Test
+    public void test_preLink_interveningOtherClusterBlocksLink() {
+        Person a = new Person();
+        a.setFirstName("Alice");
+        a.setLastName("Apple");
+        Person b = new Person();
+        b.setFirstName("Bob");
+        b.setLastName("Banana");
+        List<Person> authors = Arrays.asList(a, b);
+
+        Affiliation lab = affiliation("Lab");
+        List<LayoutToken> labTokens = makeTokens("Lab");
+        lab.setLayoutTokens(labTokens);
+        List<Affiliation> affs = Arrays.asList(lab);
+
+        List<TaggingTokenCluster> clusters = Arrays.asList(
+                buildCluster(TaggingLabels.HEADER_AUTHOR, makeTokens("Alice", "Apple")),
+                buildCluster(TaggingLabels.HEADER_OTHER, makeTokens("Email", ":", "x", "@", "y")),
+                buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, labTokens));
+
+        AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(authors, affs, clusters);
+
+        assertNull(a.getAffiliations());
+        assertNull(b.getAffiliations());
+        assertTrue(lab.getFailAffiliation());
+    }
+
     // --- Helper methods ---
 
     private static Set<String> markersOf(Person p) {
@@ -784,5 +987,43 @@ public class AuthorAffiliationAssignerTest {
         List<LayoutToken> tokens = new ArrayList<>();
         tokens.add(token);
         return tokens;
+    }
+
+    /**
+     * Build a list of fresh LayoutTokens, one per surface word.
+     */
+    private static List<LayoutToken> makeTokens(String... words) {
+        List<LayoutToken> tokens = new ArrayList<>();
+        for (String word : words) {
+            LayoutToken tok = new LayoutToken();
+            tok.setText(word);
+            tokens.add(tok);
+        }
+        return tokens;
+    }
+
+    /**
+     * Build a TaggingTokenCluster carrying its own copy of the given tokens.
+     * Use this for clusters that are distinct from any Affiliation's
+     * layoutTokens (e.g. &lt;author&gt;, &lt;other&gt; clusters).
+     */
+    private static TaggingTokenCluster buildCluster(TaggingLabel label, List<LayoutToken> tokens) {
+        TaggingTokenCluster cluster = new TaggingTokenCluster(label);
+        cluster.addLabeledTokensContainer(new LabeledTokensContainer(tokens, "", label, true));
+        return cluster;
+    }
+
+    /**
+     * Build a TaggingTokenCluster that shares the exact same LayoutToken
+     * instances as a parsed Affiliation's layoutTokens. Reference equality is
+     * how the pre-link tier maps a HEADER &lt;affiliation&gt; cluster back to
+     * its parsed Affiliation, so both must hold the same LayoutToken objects.
+     */
+    private static TaggingTokenCluster buildClusterWithSharedTokens(
+            TaggingLabel label,
+            List<LayoutToken> sharedTokens) {
+        TaggingTokenCluster cluster = new TaggingTokenCluster(label);
+        cluster.addLabeledTokensContainer(new LabeledTokensContainer(sharedTokens, "", label, true));
+        return cluster;
     }
 }

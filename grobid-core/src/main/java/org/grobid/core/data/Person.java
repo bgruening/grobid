@@ -670,6 +670,11 @@ public class Person {
                     String localSuffix = localPerson.getSuffix();
                     if (localSuffix != null)
                         localSuffix = localSuffix.toLowerCase();
+                    // Track whether any merging Person had a length-1 firstName
+                    // (the signature of an ALLCAPS-split form from
+                    // Person.normalizeName, e.g. "YI" -> "Y" + "I"). Used below
+                    // to scope the phantom-middle-initial clearing.
+                    boolean anyShortFirstName = (localFirstName != null && localFirstName.length() == 1);
                     List<Affiliation> aff = localPerson.getAffiliations();
                     for (int i = 1; i < localPersons.size(); i++) {
                         Person otherPerson = localPersons.get(i);
@@ -677,6 +682,9 @@ public class Person {
                         String otherFirstName = otherPerson.getFirstName();
                         if (otherFirstName != null)
                             otherFirstName = otherFirstName.toLowerCase();
+                        if (otherFirstName != null && otherFirstName.length() == 1) {
+                            anyShortFirstName = true;
+                        }
                         String otherMiddleName = otherPerson.getMiddleName();
                         if (otherMiddleName != null)
                             otherMiddleName = otherMiddleName.toLowerCase();
@@ -743,6 +751,19 @@ public class Person {
 
                         if (persons.contains(otherPerson))
                             persons.remove(otherPerson);
+                    }
+
+                    // Drop a phantom middle initial introduced by ALLCAPS firstName
+                    // splitting in Person.normalizeName (e.g., front "YI" -> firstName="Y",
+                    // middleName="I" then merged with back "Yi" leaves a redundant middle "I").
+                    // Guarded by anyShortFirstName so a real middle initial like "John F.
+                    // Kennedy" merging with "John Kennedy" (no length-1 firstName) is preserved.
+                    if (anyShortFirstName
+                            && localMiddleName != null && localMiddleName.length() == 1
+                            && localFirstName != null && localFirstName.length() >= 2
+                            && localFirstName.endsWith(localMiddleName)) {
+                        localPerson.setMiddleName(null);
+                        localMiddleName = null;
                     }
                 }
             }

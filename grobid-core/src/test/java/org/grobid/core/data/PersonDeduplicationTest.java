@@ -223,4 +223,121 @@ public class PersonDeduplicationTest {
         assertThat(persons.size(), is(2));
     }
 
+    @Test
+    public void test_phantom_middle_I_from_allcaps_split_dropped() {
+        // arXiv 1108.5164 reproduction. Front-of-paper "YI HU" goes through
+        // Person.normalizeName() and is split into firstName="Y", middleName="I"
+        // (because "YI" is exactly 2 ALLCAPS chars). The back-of-paper "Yi Hu"
+        // parses cleanly. Dedup must not preserve the redundant middle "I".
+        target = new Person();
+        target.setFirstName("YI");
+        target.setLastName("Hu");
+        target.normalizeName();
+        // sanity check the splitting heuristic still fires
+        assertThat(target.getFirstName(), is("Y"));
+        assertThat(target.getMiddleName(), is("I"));
+
+        Person other = new Person();
+        other.setFirstName("Yi");
+        other.setLastName("Hu");
+        other.normalizeName();
+        // "Yi" is mixed case so normalizeName must NOT split it
+        assertThat(other.getFirstName(), is("Yi"));
+        assertThat(other.getMiddleName(), is(nullValue()));
+
+        List<Person> persons = new ArrayList<Person>();
+        persons.add(target);
+        persons.add(other);
+
+        target.deduplicate(persons);
+
+        assertThat(persons.size(), is(1));
+        assertThat(persons.get(0).getFirstName(), is("Yi"));
+        assertThat(persons.get(0).getMiddleName(), is(nullValue()));
+        assertThat(persons.get(0).getLastName(), is("Hu"));
+    }
+
+    @Test
+    public void test_phantom_middle_I_symmetric() {
+        // Same scenario, but with the non-split form added first (so it becomes
+        // the kept localPerson and the split form is the "other"). The phantom
+        // middle still has to be dropped after the merge.
+        target = new Person();
+        target.setFirstName("Yi");
+        target.setLastName("Hu");
+        target.normalizeName();
+
+        Person other = new Person();
+        other.setFirstName("YI");
+        other.setLastName("Hu");
+        other.normalizeName();
+
+        List<Person> persons = new ArrayList<Person>();
+        persons.add(target);
+        persons.add(other);
+
+        target.deduplicate(persons);
+
+        assertThat(persons.size(), is(1));
+        assertThat(persons.get(0).getFirstName(), is("Yi"));
+        assertThat(persons.get(0).getMiddleName(), is(nullValue()));
+        assertThat(persons.get(0).getLastName(), is("Hu"));
+    }
+
+    @Test
+    public void test_real_middle_initial_preserved_when_no_short_firstname() {
+        // Real middle initial must be preserved when neither merging Person has
+        // a length-1 firstName (the ALLCAPS-split signature). "John F." Kennedy
+        // merging with "John" Kennedy keeps "F".
+        target = new Person();
+        target.setFirstName("John");
+        target.setMiddleName("F");
+        target.setLastName("Kennedy");
+        target.normalizeName();
+
+        Person other = new Person();
+        other.setFirstName("John");
+        other.setLastName("Kennedy");
+        other.normalizeName();
+
+        List<Person> persons = new ArrayList<Person>();
+        persons.add(target);
+        persons.add(other);
+
+        target.deduplicate(persons);
+
+        assertThat(persons.size(), is(1));
+        assertThat(persons.get(0).getFirstName(), is("John"));
+        assertThat(persons.get(0).getMiddleName(), is("F"));
+        assertThat(persons.get(0).getLastName(), is("Kennedy"));
+    }
+
+    @Test
+    public void test_real_middle_initial_preserved_when_one_short_firstname_does_not_overlap() {
+        // anyShortFirstName=true via the J. variant, but the upgraded firstName
+        // ("John") does not end with the middle initial ("F"), so the middle
+        // must be preserved.
+        target = new Person();
+        target.setFirstName("J");
+        target.setMiddleName("F");
+        target.setLastName("Kennedy");
+        target.normalizeName();
+
+        Person other = new Person();
+        other.setFirstName("John");
+        other.setLastName("Kennedy");
+        other.normalizeName();
+
+        List<Person> persons = new ArrayList<Person>();
+        persons.add(target);
+        persons.add(other);
+
+        target.deduplicate(persons);
+
+        assertThat(persons.size(), is(1));
+        assertThat(persons.get(0).getFirstName(), is("John"));
+        assertThat(persons.get(0).getMiddleName(), is("F"));
+        assertThat(persons.get(0).getLastName(), is("Kennedy"));
+    }
+
 }

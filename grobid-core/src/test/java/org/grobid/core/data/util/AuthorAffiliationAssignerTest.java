@@ -919,6 +919,92 @@ public class AuthorAffiliationAssignerTest {
         assertTrue(lab.getFailAffiliation());
     }
 
+    /**
+     * Reproduces arXiv 0810.3241: the HEADER model emits a single
+     * &lt;author&gt; cluster carrying multiple author names separated by ",".
+     * Pre-link must split the cluster into name spans and link every matched
+     * author to the affiliation; before the fix, only the last surname was
+     * considered and the other authors stayed floating, sometimes ending up on
+     * an unrelated affiliation via the proximity fallback.
+     */
+    @Test
+    public void test_preLink_multiAuthorClusterLinksAllNames() {
+        Person mankame = new Person();
+        mankame.setFirstName("Devdatta");
+        mankame.setLastName("Mankame");
+        Person doi = new Person();
+        doi.setFirstName("Takumi");
+        doi.setLastName("Doi");
+        Person draper = new Person();
+        draper.setFirstName("Terrence");
+        draper.setLastName("Draper");
+        Person liu = new Person();
+        liu.setFirstName("Keh-Fei");
+        liu.setLastName("Liu");
+        List<Person> authors = Arrays.asList(mankame, doi, draper, liu);
+
+        Affiliation kentucky = affiliation("University of Kentucky");
+        List<LayoutToken> kentuckyTokens = makeTokens("177", "Chem", ".", "-", "Phys", ".", "Building");
+        kentucky.setLayoutTokens(kentuckyTokens);
+        List<Affiliation> affs = Arrays.asList(kentucky);
+
+        List<TaggingTokenCluster> clusters = Arrays.asList(
+                buildCluster(
+                        TaggingLabels.HEADER_AUTHOR,
+                        makeTokens(
+                                "Devdatta",
+                                "Mankame",
+                                ",",
+                                "Takumi",
+                                "Doi",
+                                ",",
+                                "Terrence",
+                                "Draper",
+                                ",",
+                                "Keh-Fei",
+                                "Liu")),
+                buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, kentuckyTokens));
+
+        AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(authors, affs, clusters);
+
+        assertThat(mankame.getAffiliations(), hasSize(1));
+        assertThat(doi.getAffiliations(), hasSize(1));
+        assertThat(draper.getAffiliations(), hasSize(1));
+        assertThat(liu.getAffiliations(), hasSize(1));
+        assertFalse(kentucky.getFailAffiliation());
+    }
+
+    /**
+     * Multi-author cluster joined by "and": the keyword splits names too.
+     */
+    @Test
+    public void test_preLink_multiAuthorClusterAndSeparator() {
+        Person a = new Person();
+        a.setFirstName("Alice");
+        a.setLastName("Apple");
+        Person b = new Person();
+        b.setFirstName("Bob");
+        b.setLastName("Banana");
+        List<Person> authors = Arrays.asList(a, b);
+
+        Affiliation lab = affiliation("Lab");
+        List<LayoutToken> labTokens = makeTokens("Lab");
+        lab.setLayoutTokens(labTokens);
+        List<Affiliation> affs = Arrays.asList(lab);
+
+        List<TaggingTokenCluster> clusters = Arrays.asList(
+                buildCluster(
+                        TaggingLabels.HEADER_AUTHOR,
+                        makeTokens("Alice", "Apple", "and", "Bob", "Banana")),
+                buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, labTokens));
+
+        AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(authors, affs, clusters);
+
+        assertThat(a.getAffiliations(), hasSize(1));
+        assertThat(b.getAffiliations(), hasSize(1));
+        assertFalse(lab.getFailAffiliation());
+    }
+
     // --- Helper methods ---
 
     private static Set<String> markersOf(Person p) {

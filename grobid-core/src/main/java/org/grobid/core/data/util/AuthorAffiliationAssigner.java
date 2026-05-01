@@ -187,29 +187,70 @@ public class AuthorAffiliationAssigner {
                 continue;
             }
 
-            // Walk back through consecutive HEADER_AUTHOR clusters.
+            // Walk back through consecutive HEADER_AUTHOR clusters. Each cluster
+            // can contain multiple authors separated by "," / "and" — split the
+            // tokens into name spans and match each independently so all authors
+            // in a multi-author cluster get linked to the affiliation.
             for (int j = i - 1; j >= 0; j--) {
                 TaggingTokenCluster prev = clusters.get(j);
                 if (prev == null || !TaggingLabels.HEADER_AUTHOR.equals(prev.getTaggingLabel())) {
                     break;
                 }
-                Person matched = matchPersonByCluster(prev.concatTokens(), authors);
-                if (matched == null) {
-                    continue;
-                }
-                for (Affiliation aff : targets) {
-                    List<Affiliation> existing = matched.getAffiliations();
-                    if (existing == null || !existing.contains(aff)) {
-                        matched.addAffiliation(aff);
-                        aff.setFailAffiliation(false);
-                        LOGGER.debug(
-                                "Pre-link by preceding <author>: '{}' linked to affiliation '{}'",
-                                matched.getLastName(),
-                                aff.getRawAffiliationString());
+                for (List<LayoutToken> span : splitByNameSeparators(prev.concatTokens())) {
+                    Person matched = matchPersonByCluster(span, authors);
+                    if (matched == null) {
+                        continue;
+                    }
+                    for (Affiliation aff : targets) {
+                        List<Affiliation> existing = matched.getAffiliations();
+                        if (existing == null || !existing.contains(aff)) {
+                            matched.addAffiliation(aff);
+                            aff.setFailAffiliation(false);
+                            LOGGER.debug(
+                                    "Pre-link by preceding <author>: '{}' linked to affiliation '{}'",
+                                    matched.getLastName(),
+                                    aff.getRawAffiliationString());
+                        }
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Split a sequence of cluster tokens into individual author-name spans by
+     * "," and "and" separators. A cluster like "A, B, C and D" yields four
+     * spans, each containing only the tokens for one author. Single-author
+     * clusters return a single span.
+     */
+    static List<List<LayoutToken>> splitByNameSeparators(List<LayoutToken> tokens) {
+        List<List<LayoutToken>> spans = new ArrayList<>();
+        if (CollectionUtils.isEmpty(tokens)) {
+            return spans;
+        }
+        List<LayoutToken> current = new ArrayList<>();
+        for (LayoutToken tok : tokens) {
+            String text = tok.getText();
+            if (text == null) {
+                continue;
+            }
+            String trimmed = text.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (",".equals(trimmed) || "and".equalsIgnoreCase(trimmed)) {
+                if (!current.isEmpty()) {
+                    spans.add(current);
+                    current = new ArrayList<>();
+                }
+                continue;
+            }
+            current.add(tok);
+        }
+        if (!current.isEmpty()) {
+            spans.add(current);
+        }
+        return spans;
     }
 
     /**

@@ -393,8 +393,7 @@ public class AffiliationAddressParserTest {
      */
     @Test
     public void testResultExtractionLayoutTokens_segmentBoundaryForceSplit() throws Exception {
-        String result =
-                  "Department\tdepartment\tD\tDe\tDep\tDepa\tt\tnt\tent\tment\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\tI-<department>\n"
+        String result = "Department\tdepartment\tD\tDe\tDep\tDepa\tt\tnt\tent\tment\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\tI-<department>\n"
                 + "of\tof\to\tof\tof\tof\tf\tof\tof\tof\tLINEIN\tNOCAPS\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\txx\t<affiliation>\t<department>\n"
                 + "Computer\tcomputer\tC\tCo\tCom\tComp\tr\ter\tter\tuter\tLINEIN\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\t<department>\n"
                 + "Science\tscience\tS\tSc\tSci\tScie\te\tce\tnce\tence\tLINEEND\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\t<department>\n"
@@ -462,6 +461,102 @@ public class AffiliationAddressParserTest {
         assertThat(aff2.getInstitutions(), hasSize(1));
         assertThat(aff2.getInstitutions().get(0), containsString("British"));
         assertThat(aff2.getInstitutions().get(0), containsString("Columbia"));
+    }
+
+    /**
+     * Reproduces arXiv 2105.12810: the affiliation-address model emits the
+     * sequence institution → marker → institution → marker → marker
+     * because each institution carries a different author marker
+     * ("Concordia University¹ North South University²,³"). Without the split
+     * on "marker between institutions", both institutions collapse into a
+     * single Affiliation and downstream consumers (TEI's first-orgName
+     * extraction) drop the second institution, breaking the link from
+     * authors 2 and 3 to North South University.
+     * Pins the post-fix behaviour: each institution gets its own
+     * Affiliation and its own marker. The trailing extra marker (3) without
+     * a following institution is left as a marker-only Affiliation; the
+     * multi-marker-per-institution case is out of scope here.
+     */
+    @Test
+    public void testResultExtractionLayoutTokens_splitsInstitutionsWhenMarkerBetweenThem() throws Exception {
+        String result = makeCrfRow("Concordia", "I-<institution>")
+                + makeCrfRow("University", "<institution>")
+                + makeCrfRow("1", "I-<marker>")
+                + makeCrfRow("North", "I-<institution>")
+                + makeCrfRow("South", "<institution>")
+                + makeCrfRow("University", "<institution>")
+                + makeCrfRow("2", "I-<marker>")
+                + makeCrfRow("3", "I-<marker>");
+        // Trim trailing newline added by makeCrfRow so split() doesn't yield a blank row.
+        result = result.substring(0, result.length() - 1);
+
+        List<LayoutToken> tokenizations = Arrays.stream(result.split("\n"))
+                .map(row -> new LayoutToken(row.split("\t")[0]))
+                .collect(Collectors.toList());
+
+        List<Affiliation> affiliations = target.resultExtractionLayoutTokens(result, tokenizations);
+
+        assertThat(affiliations, hasSize(greaterThanOrEqualTo(2)));
+
+        Affiliation aff0 = affiliations.get(0);
+        assertThat(aff0.getInstitutions(), hasSize(1));
+        assertThat(aff0.getInstitutions().get(0), containsString("Concordia"));
+        assertThat(aff0.getMarker(), is("1"));
+
+        Affiliation aff1 = affiliations.get(1);
+        assertThat(aff1.getInstitutions(), hasSize(1));
+        assertThat(aff1.getInstitutions().get(0), containsString("North"));
+        assertThat(aff1.getInstitutions().get(0), containsString("South"));
+        assertThat(aff1.getMarker(), is("2"));
+    }
+
+    /**
+     * Negative regression: ensure the new "marker between institutions" split
+     * does not over-fire when there is no marker between consecutive
+     * institutions. Two institutions arriving back-to-back (no marker, no
+     * line break, no address) must remain in a single Affiliation, the same
+     * way the legacy active-path handled it.
+     */
+    @Test
+    public void testResultExtractionLayoutTokens_keepsConsecutiveInstitutionsTogether() throws Exception {
+        String result = makeCrfRow("1", "I-<marker>")
+                + makeCrfRow("University", "I-<institution>")
+                + makeCrfRow("of", "<institution>")
+                + makeCrfRow("Science", "<institution>")
+                + makeCrfRow("University", "I-<institution>")
+                + makeCrfRow("of", "<institution>")
+                + makeCrfRow("Madness", "<institution>");
+        result = result.substring(0, result.length() - 1);
+
+        List<LayoutToken> tokenizations = Arrays.stream(result.split("\n"))
+                .map(row -> new LayoutToken(row.split("\t")[0]))
+                .collect(Collectors.toList());
+
+        List<Affiliation> affiliations = target.resultExtractionLayoutTokens(result, tokenizations);
+
+        assertThat(affiliations, hasSize(1));
+        Affiliation aff = affiliations.get(0);
+        assertThat(aff.getMarker(), is("1"));
+        assertThat(aff.getInstitutions(), hasSize(2));
+    }
+
+    /**
+     * Build a synthetic CRF feature-vector row in the 23-column format that
+     * {@link AffiliationAddressParser#resultExtractionLayoutTokens(String, List)}
+     * accepts. Most feature columns are placeholders — only the token text,
+     * pre-label, and predicted label are read from each row by the active path.
+     */
+    private static String makeCrfRow(String token, String label) {
+        return token
+                + "\t"
+                + token.toLowerCase()
+                + "\tX\tXX\tXXX\tXXXX"
+                + "\tx\txx\txxx\txxxx"
+                + "\tLINEIN\tINITCAP\tNODIGIT\t0\t0\t0\t0\t0\t0\tNOPUNCT\tXxxx"
+                + "\t<affiliation>"
+                + "\t"
+                + label
+                + "\n";
     }
 
     @Test

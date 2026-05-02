@@ -170,6 +170,13 @@ public class AffiliationAddressParser extends AbstractParser {
 
         String tokenLabel = null;
         boolean newline = true;
+        // Tracks whether a <marker> cluster was seen since the last <institution>
+        // cluster on the current affiliation. Used below to split when the
+        // pattern is institution → marker → institution (each institution
+        // belongs to a different author marker), without affecting the
+        // institution → institution (no marker between) case which legitimately
+        // collects multiple sub-institutions into one affiliation.
+        boolean markerSinceLastInstitution = false;
         double lastY = -1;
         int lastPage = -1;
         int lastEnd = -1;
@@ -229,9 +236,14 @@ public class AffiliationAddressParser extends AbstractParser {
 
                 affiliation.setMarker(clusterContent);
                 affiliation.addLabeledResult(TaggingLabels.AFFILIATION_MARKER, tokens);
+                markerSinceLastInstitution = true;
             } else if (clusterLabel.equals(TaggingLabels.AFFILIATION_INSTITUTION)) {
                 if (affiliation.getInstitutions() != null && affiliation.getInstitutions().size() > 0) {
-                    if (affiliation.hasAddress() || newline) {
+                    // Split when a marker has appeared between this and the
+                    // previous institution: the model emitted institution → marker →
+                    // institution because each institution belongs to a different
+                    // author marker (e.g. "Concordia University¹ North South University²").
+                    if (affiliation.hasAddress() || newline || markerSinceLastInstitution) {
                         // new affiliation
                         if (affiliation.isNotNull()) {
                             affiliations.add(affiliation);
@@ -241,6 +253,7 @@ public class AffiliationAddressParser extends AbstractParser {
                 }
                 affiliation.addInstitution(clusterContent);
                 affiliation.addLabeledResult(TaggingLabels.AFFILIATION_INSTITUTION, tokens);
+                markerSinceLastInstitution = false;
             } else if (clusterLabel.equals(TaggingLabels.AFFILIATION_DEPARTMENT)) {
                 if (affiliation.getDepartments() != null && affiliation.getDepartments().size() > 0) {
                     if (affiliation.hasAddress() || newline) {

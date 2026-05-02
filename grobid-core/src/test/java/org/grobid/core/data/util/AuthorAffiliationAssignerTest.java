@@ -789,7 +789,8 @@ public class AuthorAffiliationAssignerTest {
 
         // Victor's affiliation is missing from the header — he must NOT inherit
         // a neighbor's UBC by proximity.
-        assertTrue("Victor must stay without an affiliation",
+        assertTrue(
+                "Victor must stay without an affiliation",
                 victor.getAffiliations() == null || victor.getAffiliations().isEmpty());
 
         // Other authors keep exactly their pre-linked aff.

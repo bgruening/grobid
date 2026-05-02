@@ -379,6 +379,91 @@ public class AffiliationAddressParserTest {
         assertThat(affiliationBlocksFromSegments.get(11), is("\n"));
     }
 
+    /**
+     * Reproduces arXiv 2006.11386: three HEADER &lt;affiliation&gt; segments
+     * (block1 dept+inst, block2 inst, block3 dept+inst) get flattened into
+     * one labeled stream by {@link AffiliationAddressParser#processingLayoutTokens}.
+     * The offset gap between segments mirrors what
+     * {@code getAffiliationBlocksFromSegments} marks with a {@code "\n"}
+     * separator (gap &gt; 2). Without the segment-boundary force-split in
+     * {@code resultExtractionLayoutTokens}, block 3's DEPARTMENT cluster
+     * silently attaches to block 2's INSTITUTION because the per-label split
+     * logic only fires on label repetition. This pins the post-fix behavior:
+     * exactly three Affiliation objects, each with its own block's content.
+     */
+    @Test
+    public void testResultExtractionLayoutTokens_segmentBoundaryForceSplit() throws Exception {
+        String result =
+                  "Department\tdepartment\tD\tDe\tDep\tDepa\tt\tnt\tent\tment\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\tI-<department>\n"
+                + "of\tof\to\tof\tof\tof\tf\tof\tof\tof\tLINEIN\tNOCAPS\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\txx\t<affiliation>\t<department>\n"
+                + "Computer\tcomputer\tC\tCo\tCom\tComp\tr\ter\tter\tuter\tLINEIN\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\t<department>\n"
+                + "Science\tscience\tS\tSc\tSci\tScie\te\tce\tnce\tence\tLINEEND\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\t<department>\n"
+                + "University\tuniversity\tU\tUn\tUni\tUniv\ty\tty\tity\tsity\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\tI-<institution>\n"
+                + "of\tof\to\tof\tof\tof\tf\tof\tof\tof\tLINEIN\tNOCAPS\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\txx\t<affiliation>\t<institution>\n"
+                + "British\tbritish\tB\tBr\tBri\tBrit\th\tsh\tish\ttish\tLINEIN\tINITCAP\tNODIGIT\t0\t0\t0\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>\n"
+                + "Columbia\tcolumbia\tC\tCo\tCol\tColu\ta\tia\tbia\tmbia\tLINEEND\tINITCAP\tNODIGIT\t0\t0\t0\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>\n"
+                + "Data\tdata\tD\tDa\tDat\tData\ta\tta\tata\tData\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\tI-<institution>\n"
+                + "Science\tscience\tS\tSc\tSci\tScie\te\tce\tnce\tence\tLINEIN\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>\n"
+                + "Institute\tinstitute\tI\tIn\tIns\tInst\te\tte\tute\ttute\tLINEEND\tINITCAP\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>\n"
+                + "Columbia\tcolumbia\tC\tCo\tCol\tColu\ta\tia\tbia\tmbia\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t0\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>\n"
+                + "University\tuniversity\tU\tUn\tUni\tUniv\ty\tty\tity\tsity\tLINEEND\tINITCAP\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>\n"
+                + "Department\tdepartment\tD\tDe\tDep\tDepa\tt\tnt\tent\tment\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\tI-<department>\n"
+                + "of\tof\to\tof\tof\tof\tf\tof\tof\tof\tLINEIN\tNOCAPS\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\txx\t<affiliation>\t<department>\n"
+                + "Computer\tcomputer\tC\tCo\tCom\tComp\tr\ter\tter\tuter\tLINEIN\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\t<department>\n"
+                + "Science\tscience\tS\tSc\tSci\tScie\te\tce\tnce\tence\tLINEEND\tINITCAP\tNODIGIT\t0\t0\t1\t0\t0\t0\tNOPUNCT\tXxxx\t<affiliation>\t<department>\n"
+                + "University\tuniversity\tU\tUn\tUni\tUniv\ty\tty\tity\tsity\tLINESTART\tINITCAP\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\tI-<institution>\n"
+                + "of\tof\to\tof\tof\tof\tf\tof\tof\tof\tLINEIN\tNOCAPS\tNODIGIT\t0\t0\t1\t0\t1\t0\tNOPUNCT\txx\t<affiliation>\t<institution>\n"
+                + "British\tbritish\tB\tBr\tBri\tBrit\th\tsh\tish\ttish\tLINEIN\tINITCAP\tNODIGIT\t0\t0\t0\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>\n"
+                + "Columbia\tcolumbia\tC\tCo\tCol\tColu\ta\tia\tbia\tmbia\tLINEEND\tINITCAP\tNODIGIT\t0\t0\t0\t0\t1\t0\tNOPUNCT\tXxxx\t<affiliation>\t<institution>";
+
+        // Per-token offsets that simulate three HEADER segments far apart in
+        // the original document: the gap between segments is > 2 (the same
+        // threshold used by getAffiliationBlocksFromSegments).
+        // Block 1 indices 0..7, block 2 indices 8..12, block 3 indices 13..20.
+        int[] segmentBoundaries = {8, 13};
+        List<LayoutToken> tokenizations = new ArrayList<>();
+        String[] rows = result.split("\n");
+        int currentOffset = 0;
+        for (int i = 0; i < rows.length; i++) {
+            if (i == segmentBoundaries[0] || i == segmentBoundaries[1]) {
+                currentOffset += 100; // gap > 2 → triggers segment boundary
+            }
+            String text = rows[i].split("\t")[0];
+            LayoutToken tok = new LayoutToken(text);
+            tok.setOffset(currentOffset);
+            tokenizations.add(tok);
+            currentOffset += text.length() + 1;
+        }
+
+        List<Affiliation> result2 = target.resultExtractionLayoutTokens(result, tokenizations);
+
+        assertThat(result2, hasSize(3));
+
+        // Block 1: dept "Department of Computer Science" + inst "University of British Columbia"
+        Affiliation aff0 = result2.get(0);
+        assertThat(aff0.getDepartments(), hasSize(1));
+        assertThat(aff0.getDepartments().get(0), containsString("Department"));
+        assertThat(aff0.getInstitutions(), hasSize(1));
+        assertThat(aff0.getInstitutions().get(0), containsString("British"));
+        assertThat(aff0.getInstitutions().get(0), containsString("Columbia"));
+
+        // Block 2: inst only "Data Science Institute Columbia University"
+        Affiliation aff1 = result2.get(1);
+        assertThat(aff1.getInstitutions(), hasSize(1));
+        assertThat(aff1.getInstitutions().get(0), containsString("Data"));
+        assertThat(aff1.getInstitutions().get(0), containsString("Institute"));
+        // Critical: block 3's department must NOT have leaked onto this affiliation.
+        assertThat(aff1.getDepartments(), is(nullValue()));
+
+        // Block 3: dept "Department of Computer Science" + inst "University of British Columbia"
+        Affiliation aff2 = result2.get(2);
+        assertThat(aff2.getDepartments(), hasSize(1));
+        assertThat(aff2.getDepartments().get(0), containsString("Department"));
+        assertThat(aff2.getInstitutions(), hasSize(1));
+        assertThat(aff2.getInstitutions().get(0), containsString("British"));
+        assertThat(aff2.getInstitutions().get(0), containsString("Columbia"));
+    }
+
     @Test
     public void testGetAffiliationBlocksFromSegments_2() throws Exception {
         String block1 = "Department of science, University of Science, University of Madness";

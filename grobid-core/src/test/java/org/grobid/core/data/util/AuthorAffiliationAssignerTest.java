@@ -669,6 +669,159 @@ public class AuthorAffiliationAssignerTest {
     }
 
     /**
+     * Reproduces arXiv 2311.05528: the HEADER model labels the
+     * correspondence-line institution as &lt;affiliation&gt;, so
+     * AffiliationAddressParser produces a second {@link Affiliation} that
+     * mirrors aff0 minus the marker label and a "(C2SM)" parenthetical. After
+     * marker matching links aff0 to both authors, aff1 remains an orphan.
+     * Tier 6 ({@code rescueOrphanAffiliations}) used to dump it onto the
+     * nearest author by proximity — always the corresponding author whose
+     * name sits next to the corresp text. The duplicate guard added here
+     * skips orphans whose normalized raw text is already covered by an
+     * affiliation on the rescue target.
+     */
+    @Test
+    public void testCorrespondenceDuplicateOrphan_2311_05528() {
+        Person brigitta = personWithMarkers("Goger", "Brigitta", "1");
+        brigitta.setLayoutTokens(tokensAt(100, 100, 1));
+        Person anurag = personWithMarkers("Dipankar", "Anurag", "1");
+        anurag.setLayoutTokens(tokensAt(100, 130, 1));
+
+        Affiliation aff0 = affWithMarker(
+                "1 Center for Climate Systems Modeling (C2SM) , ETH Zurich , Zurich , Switzerland",
+                "1");
+        aff0.setLayoutTokens(tokensAt(100, 200, 1));
+        // The corresp-derived duplicate has no marker and sits near Brigitta.
+        Affiliation aff1 = affiliation(
+                "Center for Climate Systems Modeling , ETH Zurich , Zurich , Switzerland");
+        aff1.setLayoutTokens(tokensAt(100, 110, 1));
+
+        List<Person> authors = new ArrayList<>(Arrays.asList(brigitta, anurag));
+        List<Affiliation> affs = new ArrayList<>(Arrays.asList(aff0, aff1));
+
+        AuthorAffiliationAssigner.assign(authors, affs, "Brigitta Goger 1, Anurag Dipankar 1");
+
+        assertThat(brigitta.getAffiliations(), hasSize(1));
+        assertThat(brigitta.getAffiliations().get(0).getMarker(), is("1"));
+        assertThat(anurag.getAffiliations(), hasSize(1));
+        assertThat(anurag.getAffiliations().get(0).getMarker(), is("1"));
+    }
+
+    /**
+     * Reproduces arXiv 2006.11386: Kevin Leyton-Brown's surname is hyphenated.
+     * The HEADER_AUTHOR cluster tokenises as ["Kevin", "Leyton", "-", "Brown"]
+     * and the original {@code matchPersonByCluster} took the last capitalised
+     * word ("Brown") as the surname, which doesn't equal Person.lastName
+     * "Leyton-Brown" → no match → preLink leaves Kevin floating and his block-3
+     * UBC affiliation as an orphan. Post-fix: Person.lastName is matched as a
+     * substring of the span's joined token text (which preserves the hyphen).
+     */
+    @Test
+    public void test_preLink_hyphenatedSurname_2006_11386() {
+        Person kevin = new Person();
+        kevin.setFirstName("Kevin");
+        kevin.setLastName("Leyton-Brown");
+
+        List<LayoutToken> spanTokens = makeTokens("Kevin", " ", "Leyton", "-", "Brown");
+        Person matched = AuthorAffiliationAssigner.matchPersonByCluster(spanTokens, Arrays.asList(kevin));
+        assertNotNull("hyphenated surname must match Person.lastName", matched);
+        assertEquals("Leyton-Brown", matched.getLastName());
+    }
+
+    /**
+     * Multi-word surname (e.g. "Ojeda Valencia" from arXiv:2310.00185) must
+     * also match via substring even though no single capitalised token equals
+     * the full surname.
+     */
+    @Test
+    public void test_preLink_multiWordSurname() {
+        Person gabriela = new Person();
+        gabriela.setFirstName("Gabriela");
+        gabriela.setLastName("Ojeda Valencia");
+
+        List<LayoutToken> spanTokens = makeTokens("Gabriela", " ", "Ojeda", " ", "Valencia");
+        Person matched = AuthorAffiliationAssigner.matchPersonByCluster(spanTokens, Arrays.asList(gabriela));
+        assertNotNull("multi-word surname must match Person.lastName", matched);
+        assertEquals("Ojeda Valencia", matched.getLastName());
+    }
+
+    /**
+     * Reproduces arXiv 2006.11386: 4 authors, 3 affiliations, no markers
+     * anywhere. After {@code preLinkByPrecedingAuthorCluster} every
+     * affiliation is claimed by its preceding author cluster. Victor (whose
+     * own affiliation "Google" was tagged {@code <other>} upstream and lost)
+     * is the only floating author. Tier 4 (proximity) used to fall back to
+     * considering all affiliations when none were unresolved — Victor would
+     * grab the nearest, semantically wrong assignment. Post-fix: when every
+     * affiliation is claimed, the floating author stays empty.
+     */
+    @Test
+    public void testProximity_floatingAuthorStaysEmptyWhenAllAffsClaimed() {
+        Person jason = person("Hartford");
+        jason.setLayoutTokens(tokensAt(100, 50, 1));
+        Person victor = person("Veitch");
+        victor.setLayoutTokens(tokensAt(100, 150, 1));
+        Person dhanya = person("Sridhar");
+        dhanya.setLayoutTokens(tokensAt(100, 250, 1));
+        Person kevin = person("Leyton-Brown");
+        kevin.setLayoutTokens(tokensAt(100, 350, 1));
+
+        // All three affs already claimed (failAffiliation=false), as if preLink ran.
+        Affiliation aff1 = affiliation("Department of Computer Science University of British Columbia");
+        aff1.setLayoutTokens(tokensAt(100, 80, 1));
+        aff1.setFailAffiliation(false);
+        jason.addAffiliation(aff1);
+
+        Affiliation aff2 = affiliation("Data Science Institute Columbia University");
+        aff2.setLayoutTokens(tokensAt(100, 280, 1));
+        aff2.setFailAffiliation(false);
+        dhanya.addAffiliation(aff2);
+
+        Affiliation aff3 = affiliation("Department of Computer Science University of British Columbia");
+        aff3.setLayoutTokens(tokensAt(100, 380, 1));
+        aff3.setFailAffiliation(false);
+        kevin.addAffiliation(aff3);
+
+        List<Person> authors = new ArrayList<>(Arrays.asList(jason, victor, dhanya, kevin));
+        List<Affiliation> affs = new ArrayList<>(Arrays.asList(aff1, aff2, aff3));
+
+        AuthorAffiliationAssigner.assign(authors, affs, null);
+
+        // Victor's affiliation is missing from the header — he must NOT inherit
+        // a neighbor's UBC by proximity.
+        assertTrue("Victor must stay without an affiliation",
+                victor.getAffiliations() == null || victor.getAffiliations().isEmpty());
+
+        // Other authors keep exactly their pre-linked aff.
+        assertThat(jason.getAffiliations(), hasSize(1));
+        assertThat(dhanya.getAffiliations(), hasSize(1));
+        assertThat(kevin.getAffiliations(), hasSize(1));
+    }
+
+    @Test
+    public void testIsContentDuplicate_substringAfterNormalization() {
+        Affiliation a = new Affiliation();
+        a.setRawAffiliationString(
+                "1 Center for Climate Systems Modeling (C2SM) , ETH Zurich , Zurich , Switzerland");
+        Affiliation b = new Affiliation();
+        b.setRawAffiliationString(
+                "Center for Climate Systems Modeling , ETH Zurich , Zurich , Switzerland");
+
+        assertTrue(AuthorAffiliationAssigner.isContentDuplicate(b, Arrays.asList(a)));
+        assertTrue(AuthorAffiliationAssigner.isContentDuplicate(a, Arrays.asList(b)));
+    }
+
+    @Test
+    public void testIsContentDuplicate_distinctAffsNotDuplicate() {
+        Affiliation a = new Affiliation();
+        a.setRawAffiliationString("Department of Computer Science , University of British Columbia");
+        Affiliation b = new Affiliation();
+        b.setRawAffiliationString("Data Science Institute , Columbia University");
+
+        assertFalse(AuthorAffiliationAssigner.isContentDuplicate(b, Arrays.asList(a)));
+    }
+
+    /**
      * Reproduces the arXiv:2310.00185 (CARLA) regression where authors with
      * multiple markers including a shared one lose their shared-marker
      * affiliations. The AUTHOR model labels the markers as listed below;

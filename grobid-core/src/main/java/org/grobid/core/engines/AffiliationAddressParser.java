@@ -172,6 +172,7 @@ public class AffiliationAddressParser extends AbstractParser {
         boolean newline = true;
         double lastY = -1;
         int lastPage = -1;
+        int lastEnd = -1;
         List<TaggingTokenCluster> clusters = clusteror.cluster();
         for (TaggingTokenCluster cluster : clusters) {
             if (cluster == null) {
@@ -187,6 +188,22 @@ public class AffiliationAddressParser extends AbstractParser {
             //String clusterNonDehypenizedContent = LayoutTokensUtil.toText(cluster.concatTokens());
 
             List<LayoutToken> tokens = cluster.concatTokens();
+
+            // HEADER segment-boundary force-split: when callers (e.g. HeaderParser)
+            // pass several <affiliation> clusters as separate List<LayoutToken>
+            // segments, processingLayoutTokens flattens them and getAffiliationBlocksFromSegments
+            // marks the boundary by an offset gap > 2 (line 100). Without an
+            // explicit split here, a DEPARTMENT cluster from a new segment can
+            // attach to the previous segment's INSTITUTION because the per-label
+            // split logic below only fires on label repetition.
+            if (!tokens.isEmpty() && lastEnd >= 0) {
+                int currentStart = tokens.get(0).getOffset();
+                if (currentStart - lastEnd > 2 && affiliation.isNotNull()) {
+                    affiliations.add(affiliation);
+                    affiliation = new Affiliation();
+                    newline = true;
+                }
+            }
 
             // Detect a line break across the previous cluster boundary by comparing
             // page/Y of the first token here against the last token of the previous
@@ -312,6 +329,8 @@ public class AffiliationAddressParser extends AbstractParser {
                     lastY = lastToken.getY();
                     lastPage = lastToken.getPage();
                 }
+                String lastText = lastToken.getText();
+                lastEnd = lastToken.getOffset() + (lastText == null ? 0 : lastText.length());
             }
         }
 

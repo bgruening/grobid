@@ -264,7 +264,17 @@ public class AuthorAffiliationAssigner {
             return null;
         }
 
-        List<String> parts = new ArrayList<>();
+        // Concatenate the span's raw token texts so hyphenated and multi-word
+        // surnames (e.g. "Leyton-Brown", "Ojeda Valencia") survive intact.
+        StringBuilder spanBuilder = new StringBuilder();
+        for (LayoutToken tok : clusterTokens) {
+            if (tok.getText() != null) {
+                spanBuilder.append(tok.getText());
+            }
+        }
+        String spanText = spanBuilder.toString().toLowerCase(Locale.ROOT);
+
+        List<String> capWords = new ArrayList<>();
         for (LayoutToken tok : clusterTokens) {
             String text = tok.getText();
             if (StringUtils.isBlank(text)) {
@@ -274,23 +284,26 @@ public class AuthorAffiliationAssigner {
             if (text.isEmpty() || !Character.isLetter(text.charAt(0))) {
                 continue;
             }
-            // Prefer capitalised surface words; lowercase noise (and, etc.) is rare
-            // in HEADER_AUTHOR but still worth filtering.
+            // Capitalised surface words feed the first-initial fallback when
+            // multiple authors share a surname.
             if (Character.isUpperCase(text.charAt(0))) {
-                parts.add(text);
+                capWords.add(text);
             }
         }
-        if (parts.isEmpty()) {
+        if (capWords.isEmpty()) {
             return null;
         }
+        String firstInitial = capWords.size() > 1 ? capWords.get(0).substring(0, 1) : null;
 
-        String surname = parts.get(parts.size() - 1);
-        String firstInitial = parts.size() > 1 ? parts.get(0).substring(0, 1) : null;
-
+        // Primary match: Person.lastName appears verbatim in the span text.
+        // This handles hyphenated and multi-word surnames that the original
+        // last-capitalised-word heuristic missed.
         List<Person> candidates = new ArrayList<>();
         for (Person aut : authors) {
-            if (StringUtils.isNotBlank(aut.getLastName())
-                    && aut.getLastName().equalsIgnoreCase(surname)) {
+            if (StringUtils.isBlank(aut.getLastName())) {
+                continue;
+            }
+            if (spanText.contains(aut.getLastName().toLowerCase(Locale.ROOT))) {
                 candidates.add(aut);
             }
         }
@@ -549,23 +562,17 @@ public class AuthorAffiliationAssigner {
             }
         }
 
-        // Prefer affiliations not yet resolved by marker matching.
-        // If at least one unresolved affiliation exists, pull only from those —
-        // marker-matched affiliations are treated as exclusively claimed by
-        // their marker-bound author. If every affiliation has been resolved by
-        // marker matching, fall back to considering all (a floating author still
-        // needs *some* candidate).
-        boolean anyUnresolved = false;
-        for (Affiliation aff : affiliations) {
-            if (aff.getFailAffiliation()) {
-                anyUnresolved = true;
-                break;
-            }
-        }
+        // Only consider affiliations not yet claimed by an earlier tier.
+        // When every affiliation has already been claimed (by preLink or marker
+        // matching), a floating author's affiliation is genuinely missing from
+        // the header (e.g. the HEADER model tagged it as <other>). Skip
+        // assignment in that case — forcing the nearest claimed affiliation
+        // onto an unrelated floating author is worse than leaving them empty.
         Map<Affiliation, double[]> affCentroids = new LinkedHashMap<>();
         for (Affiliation aff : affiliations) {
-            if (anyUnresolved && !aff.getFailAffiliation())
+            if (!aff.getFailAffiliation()) {
                 continue;
+            }
             double[] centroid = computeCentroid(aff.getLayoutTokens());
             if (centroid != null) {
                 affCentroids.put(aff, centroid);
@@ -754,6 +761,13 @@ public class AuthorAffiliationAssigner {
             }
 
             if (bestAuthor != null) {
+                if (isContentDuplicate(orphan, bestAuthor.getAffiliations())) {
+                    LOGGER.debug(
+                            "Orphan rescue: skipping affiliation '{}' — content-equivalent to one already on '{}'",
+                            orphan.getRawAffiliationString(),
+                            bestAuthor.getLastName());
+                    continue;
+                }
                 bestAuthor.addAffiliation(orphan);
                 orphan.setFailAffiliation(false);
                 LOGGER.debug(
@@ -762,6 +776,54 @@ public class AuthorAffiliationAssigner {
                         bestAuthor.getLastName());
             }
         }
+    }
+
+    /**
+     * True when {@code candidate}'s raw affiliation text is content-equivalent
+     * to any affiliation in {@code existing} (after normalization, either string
+     * is contained in the other). Used by {@link #rescueOrphanAffiliations} to
+     * skip duplicates that arise when the HEADER model labels the
+     * correspondence-line institution as {@code <affiliation>}, producing a
+     * second {@link Affiliation} that mirrors the legitimate one.
+     */
+    static boolean isContentDuplicate(Affiliation candidate, List<Affiliation> existing) {
+        if (CollectionUtils.isEmpty(existing) || candidate == null) {
+            return false;
+        }
+        String c = normalizeForMatch(candidate.getRawAffiliationString());
+        if (StringUtils.isBlank(c)) {
+            return false;
+        }
+        for (Affiliation a : existing) {
+            if (a == candidate) {
+                continue;
+            }
+            String e = normalizeForMatch(a.getRawAffiliationString());
+            if (StringUtils.isBlank(e)) {
+                continue;
+            }
+            if (e.contains(c) || c.contains(e)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Normalize an affiliation raw string for substring-equivalence comparison:
+     * lowercase, drop a leading marker label (digits or single letter followed
+     * by space), drop "(...)" parentheticals (e.g. "(C2SM)"), and collapse
+     * whitespace and punctuation to single spaces.
+     */
+    static String normalizeForMatch(String raw) {
+        if (StringUtils.isBlank(raw)) {
+            return "";
+        }
+        String s = raw.toLowerCase(Locale.ROOT);
+        s = s.replaceAll("\\([^)]*\\)", " ");
+        s = s.replaceAll("^\\s*[\\d*†‡§¶a-z]{1,3}\\s+", "");
+        s = s.replaceAll("[\\p{Punct}\\s]+", " ").trim();
+        return s;
     }
 
     /**

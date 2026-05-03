@@ -2,6 +2,7 @@ package org.grobid.core.data.util;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.*;
 
@@ -1157,6 +1158,59 @@ public class AuthorAffiliationAssignerTest {
         assertThat(a.getAffiliations(), hasSize(1));
         assertThat(b.getAffiliations(), hasSize(1));
         assertFalse(lab.getFailAffiliation());
+    }
+
+    /**
+     * Reproduces arXiv 0706.2908: header model emits two authors in a single
+     * &lt;author&gt; cluster with neither comma nor "and" tagged as a
+     * separator. The pre-link tier's surname-search finds BOTH authors as
+     * candidates, but the legacy single-Person fallback only returned the
+     * one whose first initial matched the leading capital. With multi-author
+     * matching, every candidate whose first initial appears as a capitalised
+     * surface word in the span gets linked.
+     */
+    @Test
+    public void test_preLink_multiAuthorClusterWithoutSeparator_0706_2908() {
+        Person atkinson = personWithMarkers("Atkinson", "M.D.");
+        Person willigenburg = personWithMarkers("Willigenburg", "S.J.");
+        Person pfeiffer = personWithMarkers("Pfeiffer", "G.");
+        List<Person> authors = Arrays.asList(atkinson, willigenburg, pfeiffer);
+
+        Affiliation school = affiliation("School of Mathematical and Computational Sciences");
+        List<LayoutToken> schoolTokens = makeTokens("School", "of", "Mathematical");
+        school.setLayoutTokens(schoolTokens);
+        Affiliation dept = affiliation("Department of Mathematics University College");
+        List<LayoutToken> deptTokens = makeTokens("Department", "of", "Mathematics");
+        dept.setLayoutTokens(deptTokens);
+        List<Affiliation> affs = Arrays.asList(school, dept);
+
+        // Critical: NO "," or "and" token between the two authors — mirrors
+        // the buggy header-model output for 0706.2908.
+        List<TaggingTokenCluster> clusters = Arrays.asList(
+                buildCluster(
+                        TaggingLabels.HEADER_AUTHOR,
+                        makeTokens("M", ".", "D", ".", "Atkinson", "S", ".", "J", ".", "Willigenburg")),
+                buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, schoolTokens),
+                buildCluster(TaggingLabels.HEADER_AUTHOR, makeTokens("G", ".", "Pfeiffer")),
+                buildClusterWithSharedTokens(TaggingLabels.HEADER_AFFILIATION, deptTokens));
+
+        AuthorAffiliationAssigner.preLinkByPrecedingAuthorCluster(authors, affs, clusters);
+
+        assertThat(atkinson.getAffiliations(), hasSize(1));
+        assertThat(
+                atkinson.getAffiliations().get(0).getRawAffiliationString(),
+                containsString("School"));
+        // Pre-fix: this assertion failed (size 0) because the legacy first-
+        // initial filter only selected Atkinson, leaving Willigenburg
+        // unmatched and unaffiliated.
+        assertThat(willigenburg.getAffiliations(), hasSize(1));
+        assertThat(
+                willigenburg.getAffiliations().get(0).getRawAffiliationString(),
+                containsString("School"));
+        assertThat(pfeiffer.getAffiliations(), hasSize(1));
+        assertThat(
+                pfeiffer.getAffiliations().get(0).getRawAffiliationString(),
+                containsString("Department"));
     }
 
     // --- Helper methods ---

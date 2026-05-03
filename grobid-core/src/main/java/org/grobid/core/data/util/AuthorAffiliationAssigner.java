@@ -197,19 +197,23 @@ public class AuthorAffiliationAssigner {
                     break;
                 }
                 for (List<LayoutToken> span : splitByNameSeparators(prev.concatTokens())) {
-                    Person matched = matchPersonByCluster(span, authors);
-                    if (matched == null) {
-                        continue;
-                    }
-                    for (Affiliation aff : targets) {
-                        List<Affiliation> existing = matched.getAffiliations();
-                        if (existing == null || !existing.contains(aff)) {
-                            matched.addAffiliation(aff);
-                            aff.setFailAffiliation(false);
-                            LOGGER.debug(
-                                    "Pre-link by preceding <author>: '{}' linked to affiliation '{}'",
-                                    matched.getLastName(),
-                                    aff.getRawAffiliationString());
+                    // matchPersonsByCluster returns multiple authors when the
+                    // span covers several names without a separator (header
+                    // model output for "M.D. Atkinson S.J. van Willigenburg"
+                    // where neither comma nor "and" was tagged) — link the
+                    // affiliation to all matched authors so co-authors don't
+                    // silently lose their shared affiliation.
+                    for (Person matched : matchPersonsByCluster(span, authors)) {
+                        for (Affiliation aff : targets) {
+                            List<Affiliation> existing = matched.getAffiliations();
+                            if (existing == null || !existing.contains(aff)) {
+                                matched.addAffiliation(aff);
+                                aff.setFailAffiliation(false);
+                                LOGGER.debug(
+                                        "Pre-link by preceding <author>: '{}' linked to affiliation '{}'",
+                                        matched.getLastName(),
+                                        aff.getRawAffiliationString());
+                            }
                         }
                     }
                 }
@@ -260,8 +264,24 @@ public class AuthorAffiliationAssigner {
      * matches are left for downstream tiers.
      */
     static Person matchPersonByCluster(List<LayoutToken> clusterTokens, List<Person> authors) {
+        List<Person> matches = matchPersonsByCluster(clusterTokens, authors);
+        return matches.size() == 1 ? matches.get(0) : null;
+    }
+
+    /**
+     * Multi-author variant of {@link #matchPersonByCluster}. When the
+     * &lt;author&gt; cluster covers several names with no separator token (a
+     * common header-model output for "M.D. Atkinson S.J. van Willigenburg"
+     * where neither "and" nor "," was emitted), the cluster's tokens contain
+     * multiple distinct surnames AND each candidate's first initial appears
+     * as its own capitalised surface word — link the affiliation to each
+     * such candidate so all the authors named in the cluster get covered.
+     * Falls through to single-match semantics when only one candidate
+     * matches by surname.
+     */
+    static List<Person> matchPersonsByCluster(List<LayoutToken> clusterTokens, List<Person> authors) {
         if (CollectionUtils.isEmpty(clusterTokens) || CollectionUtils.isEmpty(authors)) {
-            return null;
+            return Collections.emptyList();
         }
 
         // Concatenate the span's raw token texts so hyphenated and multi-word
@@ -291,23 +311,63 @@ public class AuthorAffiliationAssigner {
             }
         }
         if (capWords.isEmpty()) {
-            return null;
+            return Collections.emptyList();
         }
         String firstInitial = capWords.size() > 1 ? capWords.get(0).substring(0, 1) : null;
 
-        // Primary match: Person.lastName appears verbatim in the span text.
-        // This handles hyphenated and multi-word surnames that the original
-        // last-capitalised-word heuristic missed.
+        // Primary match: Person.lastName appears in the span text. Strip
+        // whitespace from both sides — spanText is built by concatenating
+        // raw token texts (no inter-token spaces), so a surname like "van
+        // Willigenburg" (with internal space) wouldn't otherwise match.
+        String spanTextCompact = spanText.replaceAll("\\s+", "");
         List<Person> candidates = new ArrayList<>();
         for (Person aut : authors) {
             if (StringUtils.isBlank(aut.getLastName())) {
                 continue;
             }
-            if (spanText.contains(aut.getLastName().toLowerCase(Locale.ROOT))) {
+            String lnCompact = aut.getLastName().toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+            if (spanTextCompact.contains(lnCompact)) {
                 candidates.add(aut);
             }
         }
-        if (candidates.size() > 1 && firstInitial != null) {
+        if (candidates.size() <= 1) {
+            return candidates;
+        }
+
+        // Multiple candidates: try to match each one's first initial against a
+        // capitalised surface word in the span. Authors whose first initial is
+        // present (and unique among candidates) are kept — the cluster covers
+        // them all simultaneously, e.g. "M.D. Atkinson S.J. van Willigenburg".
+        Set<String> capInitials = new HashSet<>();
+        for (String word : capWords) {
+            if (!word.isEmpty()) {
+                capInitials.add(word.substring(0, 1).toUpperCase(Locale.ROOT));
+            }
+        }
+        Map<String, List<Person>> byInitial = new HashMap<>();
+        for (Person aut : candidates) {
+            String fn = aut.getFirstName();
+            if (StringUtils.isBlank(fn)) {
+                continue;
+            }
+            String init = fn.substring(0, 1).toUpperCase(Locale.ROOT);
+            byInitial.computeIfAbsent(init, k -> new ArrayList<>()).add(aut);
+        }
+        List<Person> matched = new ArrayList<>();
+        for (Map.Entry<String, List<Person>> e : byInitial.entrySet()) {
+            String init = e.getKey();
+            List<Person> list = e.getValue();
+            if (capInitials.contains(init) && list.size() == 1) {
+                matched.add(list.get(0));
+            }
+        }
+        if (!matched.isEmpty()) {
+            return matched;
+        }
+        // Fallback: legacy single-author disambiguation by leading first
+        // initial — preserves prior behaviour for spans that don't fit the
+        // multi-author pattern.
+        if (firstInitial != null) {
             List<Person> filtered = new ArrayList<>();
             for (Person aut : candidates) {
                 if (StringUtils.isNotBlank(aut.getFirstName())
@@ -315,11 +375,11 @@ public class AuthorAffiliationAssigner {
                     filtered.add(aut);
                 }
             }
-            if (!filtered.isEmpty()) {
-                candidates = filtered;
+            if (filtered.size() == 1) {
+                return filtered;
             }
         }
-        return candidates.size() == 1 ? candidates.get(0) : null;
+        return Collections.emptyList();
     }
 
     /**

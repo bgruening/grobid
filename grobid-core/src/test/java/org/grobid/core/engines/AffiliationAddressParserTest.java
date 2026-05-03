@@ -559,6 +559,61 @@ public class AffiliationAddressParserTest {
                 + "\n";
     }
 
+    /**
+     * Resolves the Nabeel-marker-3 residue from arXiv 2105.12810: when an
+     * institution carries multiple author markers (e.g. "North South
+     * University²,³"), the affiliation-address model emits institution →
+     * marker → marker, and the parser previously closed the institution-
+     * bearing affiliation on the first marker, then opened a fresh empty
+     * affiliation for the second. Author 3 was left without an affiliation.
+     * The fix clones the just-closed affiliation's institution content when
+     * the previous cluster was a marker, so both markers resolve to the
+     * same institution.
+     */
+    @Test
+    public void testResultExtractionLayoutTokens_consecutiveMarkersCloneInstitution() throws Exception {
+        String result = makeCrfRow("Concordia", "I-<institution>")
+                + makeCrfRow("University", "<institution>")
+                + makeCrfRow("1", "I-<marker>")
+                + makeCrfRow("North", "I-<institution>")
+                + makeCrfRow("South", "<institution>")
+                + makeCrfRow("University", "<institution>")
+                + makeCrfRow("2", "I-<marker>")
+                + makeCrfRow("3", "I-<marker>");
+        result = result.substring(0, result.length() - 1);
+
+        List<LayoutToken> tokenizations = Arrays.stream(result.split("\n"))
+                .map(row -> new LayoutToken(row.split("\t")[0]))
+                .collect(Collectors.toList());
+
+        List<Affiliation> affiliations = target.resultExtractionLayoutTokens(result, tokenizations);
+
+        assertThat(affiliations, hasSize(3));
+
+        // aff[0]: Concordia, marker 1
+        assertThat(affiliations.get(0).getInstitutions(), hasSize(1));
+        assertThat(affiliations.get(0).getInstitutions().get(0), containsString("Concordia"));
+        assertThat(affiliations.get(0).getMarker(), is("1"));
+
+        // aff[1]: North South University, marker 2
+        assertThat(affiliations.get(1).getInstitutions(), hasSize(1));
+        assertThat(affiliations.get(1).getInstitutions().get(0), containsString("North"));
+        assertThat(affiliations.get(1).getMarker(), is("2"));
+
+        // aff[2]: SAME institution as aff[1] (cloned), marker 3
+        assertThat(affiliations.get(2).getInstitutions(), hasSize(1));
+        assertThat(affiliations.get(2).getInstitutions().get(0), containsString("North"));
+        assertThat(affiliations.get(2).getInstitutions().get(0), containsString("South"));
+        assertThat(affiliations.get(2).getMarker(), is("3"));
+
+        // Crucially the clone must not have shared the list with aff[1] —
+        // mutating one must not affect the other. We can't easily mutate
+        // here, but verify the lists are distinct objects.
+        assertThat(
+                affiliations.get(2).getInstitutions(),
+                is(not(sameInstance(affiliations.get(1).getInstitutions()))));
+    }
+
     @Test
     public void testGetAffiliationBlocksFromSegments_2() throws Exception {
         String block1 = "Department of science, University of Science, University of Madness";

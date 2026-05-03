@@ -228,10 +228,26 @@ public class AffiliationAddressParser extends AbstractParser {
                 // if an affiliation has already a merker, or if a marker start a line,
                 // we introduce a new affiliation
                 if (affiliation.getMarker() != null || newline) {
+                    Affiliation closed = null;
                     if (affiliation.isNotNull()) {
                         affiliations.add(affiliation);
+                        closed = affiliation;
                     }
-                    affiliation = new Affiliation();
+                    // Consecutive markers attached to the same institution
+                    // (e.g. "X¹,²" — multiple author markers stacked on one
+                    // institution): clone the just-closed affiliation so each
+                    // marker resolves to the same institution content. We use
+                    // markerSinceLastInstitution rather than the previous
+                    // cluster's label so a <other> token between markers (a
+                    // comma in "²,³") doesn't defeat the detection.
+                    if (closed != null
+                            && markerSinceLastInstitution
+                            && CollectionUtils.isNotEmpty(closed.getInstitutions())) {
+                        affiliation = cloneAffiliationContent(closed);
+                        affiliation.setMarker(null);
+                    } else {
+                        affiliation = new Affiliation();
+                    }
                 }
 
                 affiliation.setMarker(clusterContent);
@@ -1353,5 +1369,30 @@ public class AffiliationAddressParser extends AbstractParser {
             }
         }
         return res;
+    }
+
+    /**
+     * Clone an Affiliation's content so the clone can be mutated without
+     * corrupting the original. The default Affiliation copy constructor
+     * shares list references (institutions, departments, laboratories,
+     * layoutTokens); subsequent additions to either side would mutate the
+     * other. Used when consecutive markers attach to one institution and
+     * each marker needs its own Affiliation pointing to the same content.
+     */
+    private static Affiliation cloneAffiliationContent(Affiliation src) {
+        Affiliation copy = new Affiliation(src);
+        if (copy.getInstitutions() != null) {
+            copy.setInstitutions(new ArrayList<>(copy.getInstitutions()));
+        }
+        if (copy.getDepartments() != null) {
+            copy.setDepartments(new ArrayList<>(copy.getDepartments()));
+        }
+        if (copy.getLaboratories() != null) {
+            copy.setLaboratories(new ArrayList<>(copy.getLaboratories()));
+        }
+        if (copy.getLayoutTokens() != null) {
+            copy.setLayoutTokens(new ArrayList<>(copy.getLayoutTokens()));
+        }
+        return copy;
     }
 }

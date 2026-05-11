@@ -39,9 +39,11 @@ public class TEIReferenceSegmenterSaxParserTest {
     /**
      * Regression: '@' is in TextUtilities.fullPunctuations, so the punctuation
      * tokenizer used to shred the "@newline" sentinel into "@" and "newline",
-     * each then mislabeled with the current tag. After the fix, the marker
-     * survives as a single "@newline" entry and no labeled row starts with
-     * "@ " or "newline ".
+     * each then mislabeled with the current tag. After the fix, the marker is
+     * stripped entirely (the reference-segmenter trainer does not consume
+     * @newline rows, and emitting them stole slots from its matching window).
+     * No labeled row should start with "@ " or "newline ", and no row should
+     * be a standalone "@newline".
      */
     @Test
     public void newlineMarker_isPreservedAcrossPunctuationTokenizer() throws Exception {
@@ -53,7 +55,7 @@ public class TEIReferenceSegmenterSaxParserTest {
 
         List<String> labeled = parse(tei);
 
-        assertThat(labeled, hasItem(is("@newline")));
+        assertThat(labeled, everyItem(not(is("@newline"))));
         assertThat(labeled, everyItem(not(startsWith("@ "))));
         assertThat(labeled, everyItem(not(startsWith("newline "))));
         assertThat(
